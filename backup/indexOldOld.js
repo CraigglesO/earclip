@@ -1,38 +1,42 @@
-const { earcut } = require('./earcut')
-
+// @flow
+// const LAT = [-90, 90]
+// const LON = [-180, 180]
+// const LAT_DIV = 180 / divisionCount
+// const LON_DIV = 360 / (divisionCount * 2)
 let divisionCount = 4
 
-function earclip (coords, dC = 4) {
-  if (dC) divisionCount = dC
+type Point = Array<number>
 
-  let vertices = []
-  let indices = []
-
-  let sections = divideFeature(coords)
-  let offset = 0
-
-  for (let section in sections) {
-    let subsection = sections[section]
-    for (let s = 0, sl = subsection.length; s < sl; s++) {
-      const data = flatten(subsection[s])
-      let ind = earcut(data, null, offset)
-      offset += data.length / 2
-      vertices.push(...data)
-      indices.push(...ind)
-    }
+type Feature = {
+  type: string,
+  properties: Object,
+  geometry: {
+    coordinates: Array< Array<Point> >
   }
-
-  return { vertices, indices }
 }
 
-function divideFeature (coords) {
-  const sections = {}
+export type TriangularMesh = {
+  vertices: Array<Point>,
+  indices: Point
+}
+
+type Section = Array< Array<Point> >
+
+type Sections = {
+  [string]: Section
+}
+
+export default function earclip (feature: Feature, divCount?: number = 4): any {
+  divisionCount = divCount
+  const coords = feature.geometry.coordinates[0]
+
+  const sections: Sections = {}
 
   let currentLonSection = getLonSection(coords[0][0])
   let currentLatSection = getLatSection(coords[0][1])
-  let currentSection = `${currentLonSection}_${currentLatSection}`
-  let sectionCoords = [coords[0]]
   let section
+  let currentSection = section = `${currentLonSection}_${currentLatSection}`
+  let sectionCoords = [coords[0]]
 
   for (let i = 1, cl = coords.length; i < cl; i++) {
     const lonSection = getLonSection(coords[i][0])
@@ -73,7 +77,42 @@ function divideFeature (coords) {
   return sections
 }
 
-function getIntersections (p1, p2, sections) {
+function getLatSection (lat: number): number {
+  return Math.floor(divisionCount / 180 * lat + (divisionCount / 2))
+}
+
+function getLonSection (lon: number): number {
+  return Math.floor((divisionCount * 2) / 360 * lon + ((divisionCount * 2) / 2))
+}
+
+function getSectionLat (section: number): number {
+  return -90 + 180 / divisionCount * section
+}
+
+function getSectionLon (section: number): number {
+  return -180 + 360 / (divisionCount * 2) * section
+}
+
+function getSectionBounds (str: string): [number, number, number, number] {
+  let sections: Array<number> = str.split('_').map(x => parseInt(x))
+
+  return [
+    getSectionLon(sections[0]),
+    getSectionLat(sections[1]),
+    getSectionLon(sections[0] + 1),
+    getSectionLat(sections[1] + 1)
+  ]
+}
+
+function lineIntersect (p1: Point, p2: Point, p3: Point, p4: Point): [number, number] {
+  let denom = (p4[1] - p3[1]) * (p2[0] - p1[0]) - (p4[0] - p3[0]) * (p2[1] - p1[1])
+  // if (denom === 0) { return [] } NOTE: This can not happen with our algorithm
+  let ua = ((p4[0] - p3[0]) * (p1[1] - p3[1]) - (p4[1] - p3[1]) * (p1[0] - p3[0])) / denom
+
+  return [p1[0] + ua * (p2[0] - p1[0]), p1[1] + ua * (p2[1] - p1[1])]
+}
+
+function getIntersections (p1: Point, p2: Point, sections: Sections) {
   // work our way from one sector the other, adding sections as we go
   let p1LonSection = getLonSection(p1[0])
   let p1LatSection = getLatSection(p1[1])
@@ -103,13 +142,13 @@ function getIntersections (p1, p2, sections) {
   // top to bottom
   for (let j = bottom + 1; j <= top; j++) {
     let sectionLat = getSectionLat(j)
-    let intersect = lineIntersect(p1[0], p1[1], p2[0], p2[1], -180, sectionLat, 180, sectionLat)
+    let intersect = lineIntersect(p1, p2, [-180, sectionLat], [180, sectionLat])
     points.push([intersect[0], sectionLat])
   }
   // left to right
   for (let i = left + 1; i <= right; i++) {
     let sectionLon = getSectionLon(i)
-    let intersect = lineIntersect(p1[0], p1[1], p2[0], p2[1], sectionLon, -90, sectionLon, 90)
+    let intersect = lineIntersect(p1, p2, [sectionLon, -90], [sectionLon, 90])
     points.push([sectionLon, intersect[1]])
   }
 
@@ -146,6 +185,44 @@ function getIntersections (p1, p2, sections) {
 
   // return the first and last point
   return [points[0], points[points.length - 1]]
+}
+
+// find the active wall to
+function getWall (point, sectionBounds) {
+  if (point[0] === sectionBounds[0] && point[1] === sectionBounds[3]) { // top-left corner
+    return 0 // left wall
+  } else if (point[0] === sectionBounds[0] && point[1] === sectionBounds[1]) { // bottom-left corner
+    return 1 // bottom wall
+  } else if (point[0] === sectionBounds[2] && point[1] === sectionBounds[1]) { // bottom-right corner
+    return 2 // right wall
+  } else if (point[0] === sectionBounds[2] && point[1] === sectionBounds[3]) { // top-right corner
+    return 3
+  } else if (point[0] === sectionBounds[0]) { // left wall
+    return 0
+  } else if (point[1] === sectionBounds[1]) { // bottom wall
+    return 1
+  } else if (point[0] === sectionBounds[2]) { // right wall
+    return 2
+  } else { // last possible scenerio, point is on the top wall
+    return 3
+  }
+}
+
+// given a wall (vector direction) check if lastPoint moves towards firstPoint
+function findPointsInVector (startingPoints, lastPoint, wall) {
+  return startingPoints.reduce((acc, currentValue) => {
+    const startPoint = currentValue.point
+    if (wall === 0 && startPoint[0] === lastPoint[0] && startPoint[1] <= lastPoint[1]) { // left wall
+      acc.push(currentValue)
+    } else if (wall === 1 && startPoint[1] === lastPoint[1] && startPoint[0] >= lastPoint[0]) { // bottom wall
+      acc.push(currentValue)
+    } else if (wall === 2 && startPoint[0] === lastPoint[0] && startPoint[1] >= lastPoint[1]) { // right wall
+      acc.push(currentValue)
+    } else if (wall === 3 && startPoint[1] === lastPoint[1] && startPoint[0] <= lastPoint[0]) { // top wall
+      acc.push(currentValue)
+    }
+    return acc
+  }, [])
 }
 
 // NEXT: for each section go from last point to first point, following edge points counter-clockwise
@@ -204,7 +281,6 @@ function closeSections (sections) {
 }
 
 // LAST STEP: add the appropriate squares leftover
-// COUNTRIES.features[616] -> TODO: Don't fill in the squares that aren't actually inside the polygon
 function addInnerSquares (sections) {
   const sectionDepth = {}
   // organize the sections as lon->lat
@@ -232,77 +308,3 @@ function addInnerSquares (sections) {
     }
   }
 }
-
-function getLatSection (lat) {
-  return Math.floor(divisionCount / 180 * lat + (divisionCount / 2))
-}
-
-function getLonSection (lon) {
-  return Math.floor((divisionCount * 1) / 360 * lon + ((divisionCount * 1) / 2))
-}
-
-function getSectionLat (section) {
-  return -90 + 180 / divisionCount * section
-}
-
-function getSectionLon (section) {
-  return -180 + 360 / (divisionCount * 1) * section
-}
-
-function getSectionBounds (str) {
-  let sections = str.split('_').map(x => parseInt(x))
-
-  return [getSectionLon(sections[0]), getSectionLat(sections[1]), getSectionLon(sections[0] + 1), getSectionLat(sections[1] + 1)]
-}
-
-function lineIntersect (x1, y1, x2, y2, x3, y3, x4, y4) {
-  let denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1)
-  let ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom
-
-  return [x1 + ua * (x2 - x1), y1 + ua * (y2 - y1)]
-}
-
-// find the active wall to
-function getWall (point, sectionBounds) {
-  if (point[0] === sectionBounds[0] && point[1] === sectionBounds[3]) { // top-left corner
-    return 0 // left wall
-  } else if (point[0] === sectionBounds[0] && point[1] === sectionBounds[1]) { // bottom-left corner
-    return 1 // bottom wall
-  } else if (point[0] === sectionBounds[2] && point[1] === sectionBounds[1]) { // bottom-right corner
-    return 2 // right wall
-  } else if (point[0] === sectionBounds[2] && point[1] === sectionBounds[3]) { // top-right corner
-    return 3
-  } else if (point[0] === sectionBounds[0]) { // left wall
-    return 0
-  } else if (point[1] === sectionBounds[1]) { // bottom wall
-    return 1
-  } else if (point[0] === sectionBounds[2]) { // right wall
-    return 2
-  } else { // last possible scenerio, point is on the top wall
-    return 3
-  }
-}
-
-// given a wall (vector direction) check if lastPoint moves towards firstPoint
-function findPointsInVector (startingPoints, lastPoint, wall) {
-  return startingPoints.reduce((acc, currentValue) => {
-    const startPoint = currentValue.point
-    if (wall === 0 && startPoint[0] === lastPoint[0] && startPoint[1] <= lastPoint[1]) { // left wall
-      acc.push(currentValue)
-    } else if (wall === 1 && startPoint[1] === lastPoint[1] && startPoint[0] >= lastPoint[0]) { // bottom wall
-      acc.push(currentValue)
-    } else if (wall === 2 && startPoint[0] === lastPoint[0] && startPoint[1] >= lastPoint[1]) { // right wall
-      acc.push(currentValue)
-    } else if (wall === 3 && startPoint[1] === lastPoint[1] && startPoint[0] <= lastPoint[0]) { // top wall
-      acc.push(currentValue)
-    }
-    return acc
-  }, [])
-}
-
-function flatten (feature) {
-  return [].concat(...feature)
-}
-
-exports.default = earclip
-exports.flatten = flatten

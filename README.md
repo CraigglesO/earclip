@@ -1,24 +1,17 @@
-# skeleton-module [![travis][travis-image]][travis-url] [![npm][npm-image]][npm-url] [![downloads][downloads-image]][downloads-url] [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)
+# earclip [![travis][travis-image]][travis-url] [![npm][npm-image]][npm-url] [![downloads][downloads-image]][downloads-url] [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)
 
-[travis-image]: https://travis-ci.org/regia-corporation/skeleton-module.svg?branch=master
-[travis-url]: https://travis-ci.org/regia-corporation/skeleton-module
-[npm-image]: https://img.shields.io/npm/v/skeleton-module.svg
-[npm-url]: https://npmjs.org/package/skeleton-module
-[downloads-image]: https://img.shields.io/npm/dm/skeleton-module.svg
-[downloads-url]: https://www.npmjs.com/package/skeleton-module
+[travis-image]: https://travis-ci.org/regia-corporation/earclip.svg?branch=master
+[travis-url]: https://travis-ci.org/regia-corporation/earclip
+[npm-image]: https://img.shields.io/npm/v/earclip.svg
+[npm-url]: https://npmjs.org/package/earclip
+[downloads-image]: https://img.shields.io/npm/dm/earclip.svg
+[downloads-url]: https://www.npmjs.com/package/earclip
 
 ## About
 
 **Create new modules with this skeleton**
 
-```sh
-# grab the package
-git clone https://github.com/Regia/skeleton-module.git
-# remove the origin
-git remote rm origin
-# download the dependencies
-yarn
-```
+https://coveralls.io/
 
 ---
 

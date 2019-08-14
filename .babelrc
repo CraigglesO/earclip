@@ -3,9 +3,6 @@
   "minified": true,
   "sourceMap": true,
   "comments": false,
-  "presets": [
-    ["@babel/preset-env", { "useBuiltIns": "entry", "corejs": "core-js@3" }],
-    "@babel/preset-flow"
-  ],
-  "plugins": ["@babel/plugin-syntax-flow"]
+  "presets": [],
+  "plugins": []
 }

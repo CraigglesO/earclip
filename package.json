@@ -1,7 +1,7 @@
 {
-  "name": "skeleton-module",
+  "name": "earclip",
   "version": "0.0.0",
-  "description": "When creating new NodeJS modules, use this skeletal structure",
+  "description": "Triangle mesh designed to be fast, efficient, and sphere capable.",
   "main": "lib/index.js",
   "scripts": {
     "lint+build+test": "yarn run lint && yarn run build && yarn run test",
@@ -12,25 +12,28 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/regia-corporation/skeleton-module.git"
+    "url": "https://github.com/regia-corporation/earclip.git"
   },
   "author": "Craig OConnor",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/regia-corporation/skeleton-module/issues"
+    "url": "https://github.com/regia-corporation/earclip/issues"
   },
-  "homepage": "https://github.com/regia-corporation/skeleton-module#readme",
+  "homepage": "https://github.com/regia-corporation/earclip#readme",
   "devDependencies": {
     "@babel/cli": "^7.4.3",
     "@babel/core": "^7.4.3",
+    "@babel/plugin-proposal-class-properties": "^7.5.5",
     "@babel/plugin-syntax-flow": "^7.2.0",
+    "@babel/plugin-transform-template-literals": "^7.4.4",
     "@babel/preset-env": "^7.4.3",
     "@babel/preset-flow": "^7.0.0",
-    "babel-eslint": "^10.0.1",
+    "babel-eslint": "^10.0.2",
     "core-js": "^3.0.1",
-    "eslint": "^5.16.0",
-    "eslint-plugin-flowtype": "^3.6.1",
-    "flow-bin": "^0.97.0",
+    "earcut": "^2.1.5",
+    "eslint": "^6.1.0",
+    "eslint-plugin-flowtype": "^3.13.0",
+    "flow-bin": "^0.104.0",
     "standard": "*",
     "tap-summary": "^4.0.0",
     "tape": "^4.10.1",

@@ -45,7 +45,7 @@
       "flowtype"
     ],
     "ignore": [
-      "/backup/",
+      "**/backup/"
     ]
   }
 }

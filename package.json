@@ -43,6 +43,9 @@
     "parser": "babel-eslint",
     "plugins": [
       "flowtype"
+    ],
+    "ignore": [
+      "/backup/",
     ]
   }
 }

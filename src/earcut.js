@@ -1,8 +1,8 @@
 function earcut (data, holeIndices, offset = 0) {
-  let hasHoles = holeIndices && holeIndices.length
-  let outerLen = hasHoles ? holeIndices[0] * 2 : data.length
+  const hasHoles = holeIndices && holeIndices.length
+  const outerLen = hasHoles ? holeIndices[0] * 2 : data.length
   let outerNode = linkedList(data, 0, outerLen, true)
-  let triangles = []
+  const triangles = []
 
   if (!outerNode || outerNode.next === outerNode.prev) return triangles
 
@@ -131,9 +131,9 @@ function earcutLinked (ear, triangles, minX, minY, invSize, pass, offset) {
 
 // check whether a polygon node forms a valid ear with adjacent nodes
 function isEar (ear) {
-  let a = ear.prev
-  let b = ear
-  let c = ear.next
+  const a = ear.prev
+  const b = ear
+  const c = ear.next
 
   if (area(a, b, c) >= 0) return false // reflex, can't be an ear
 
@@ -150,21 +150,21 @@ function isEar (ear) {
 }
 
 function isEarHashed (ear, minX, minY, invSize) {
-  let a = ear.prev
-  let b = ear
-  let c = ear.next
+  const a = ear.prev
+  const b = ear
+  const c = ear.next
 
   if (area(a, b, c) >= 0) return false // reflex, can't be an ear
 
   // triangle bbox; min & max are calculated like this for speed
-  let minTX = a.x < b.x ? (a.x < c.x ? a.x : c.x) : (b.x < c.x ? b.x : c.x)
-  let minTY = a.y < b.y ? (a.y < c.y ? a.y : c.y) : (b.y < c.y ? b.y : c.y)
-  let maxTX = a.x > b.x ? (a.x > c.x ? a.x : c.x) : (b.x > c.x ? b.x : c.x)
-  let maxTY = a.y > b.y ? (a.y > c.y ? a.y : c.y) : (b.y > c.y ? b.y : c.y)
+  const minTX = a.x < b.x ? (a.x < c.x ? a.x : c.x) : (b.x < c.x ? b.x : c.x)
+  const minTY = a.y < b.y ? (a.y < c.y ? a.y : c.y) : (b.y < c.y ? b.y : c.y)
+  const maxTX = a.x > b.x ? (a.x > c.x ? a.x : c.x) : (b.x > c.x ? b.x : c.x)
+  const maxTY = a.y > b.y ? (a.y > c.y ? a.y : c.y) : (b.y > c.y ? b.y : c.y)
 
   // z-order range for the current triangle bbox;
-  let minZ = zOrder(minTX, minTY, minX, minY, invSize)
-  let maxZ = zOrder(maxTX, maxTY, minX, minY, invSize)
+  const minZ = zOrder(minTX, minTY, minX, minY, invSize)
+  const maxZ = zOrder(maxTX, maxTY, minX, minY, invSize)
 
   let p = ear.prevZ
   let n = ear.nextZ
@@ -205,13 +205,13 @@ function isEarHashed (ear, minX, minY, invSize) {
 function cureLocalIntersections (start, triangles) {
   let p = start
   do {
-    let a = p.prev
-    let b = p.next.next
+    const a = p.prev
+    const b = p.next.next
 
     if (!equals(a, b) && intersects(a, p, p.next, b) && locallyInside(a, b) && locallyInside(b, a)) {
-      triangles.push(a.i / 2 + offset)
-      triangles.push(p.i / 2 + offset)
-      triangles.push(b.i / 2 + offset)
+      triangles.push(a.i / 2)
+      triangles.push(p.i / 2)
+      triangles.push(b.i / 2)
 
       // remove two nodes involved
       removeNode(p)
@@ -253,7 +253,7 @@ function splitEarcut (start, triangles, minX, minY, invSize, offset) {
 
 // link every hole into the outer loop, producing a single-ring polygon without holes
 function eliminateHoles (data, holeIndices, outerNode) {
-  let queue = []
+  const queue = []
 
   let i; let len; let start; let end; let list
 
@@ -284,23 +284,23 @@ function compareX (a, b) {
 function eliminateHole (hole, outerNode) {
   outerNode = findHoleBridge(hole, outerNode)
   if (outerNode) {
-    let b = splitPolygon(outerNode, hole)
+    const b = splitPolygon(outerNode, hole)
     filterPoints(b, b.next)
   }
 }
 
 // David Eberly's algorithm for finding a bridge between hole and outer polygon
 function findHoleBridge (hole, outerNode) {
+  const hx = hole.x
+  const hy = hole.y
   let p = outerNode
-  let hx = hole.x
-  let hy = hole.y
   let qx = -Infinity
   let m
   // find a segment intersected by a ray from the hole's leftmost point to the left;
   // segment's endpoint with lesser x will be potential connection point
   do {
     if (hy <= p.y && hy >= p.next.y && p.next.y !== p.y) {
-      let x = p.x + (hy - p.y) * (p.next.x - p.x) / (p.next.y - p.y)
+      const x = p.x + (hy - p.y) * (p.next.x - p.x) / (p.next.y - p.y)
       if (x <= hx && x > qx) {
         qx = x
         if (x === hx) {
@@ -321,9 +321,9 @@ function findHoleBridge (hole, outerNode) {
   // if there are no points found, we have a valid connection;
   // otherwise choose the point of the minimum angle with the ray as connection point
 
-  let stop = m
-  let mx = m.x
-  let my = m.y
+  const stop = m
+  const mx = m.x
+  const my = m.y
   let tanMin = Infinity
   let tan
 
@@ -502,13 +502,10 @@ function locallyInside (a, b) {
 
 // check if the middle point of a polygon diagonal is inside the polygon
 function middleInside (a, b) {
+  const px = (a.x + b.x) / 2
+  const py = (a.y + b.y) / 2
   let p = a
-
   let inside = false
-
-  let px = (a.x + b.x) / 2
-
-  let py = (a.y + b.y) / 2
   do {
     if (((p.y > py) !== (p.next.y > py)) && p.next.y !== p.y &&
                 (px < (p.next.x - p.x) * (py - p.y) / (p.next.y - p.y) + p.x)) { inside = !inside }
@@ -521,10 +518,10 @@ function middleInside (a, b) {
 // link two polygon vertices with a bridge; if the vertices belong to the same ring, it splits polygon into two;
 // if one belongs to the outer ring and another to a hole, it merges it into a single ring
 function splitPolygon (a, b) {
-  let a2 = new Node(a.i, a.x, a.y)
-  let b2 = new Node(b.i, b.x, b.y)
-  let an = a.next
-  let bp = b.prev
+  const a2 = new Node(a.i, a.x, a.y)
+  const b2 = new Node(b.i, b.x, b.y)
+  const an = a.next
+  const bp = b.prev
 
   a.next = b
   b.prev = a
@@ -543,7 +540,7 @@ function splitPolygon (a, b) {
 
 // create a node and optionally link it with previous one (in a circular doubly linked list)
 function insertNode (i, x, y, last) {
-  let p = new Node(i, x, y)
+  const p = new Node(i, x, y)
 
   if (!last) {
     p.prev = p

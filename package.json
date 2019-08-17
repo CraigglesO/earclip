@@ -1,6 +1,6 @@
 {
   "name": "earclip",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Triangle mesh designed to be fast, efficient, and sphere capable.",
   "main": "lib/index.js",
   "scripts": {
@@ -12,14 +12,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/regia-corporation/earclip.git"
+    "url": "https://github.com/regiacorp/earclip.git"
   },
   "author": "Craig OConnor",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/regia-corporation/earclip/issues"
+    "url": "https://github.com/regiacorp/earclip/issues"
   },
-  "homepage": "https://github.com/regia-corporation/earclip#readme",
+  "homepage": "https://github.com/regiacorp/earclip#readme",
   "devDependencies": {
     "@babel/cli": "^7.4.3",
     "@babel/core": "^7.4.3",

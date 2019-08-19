@@ -1,9 +1,14 @@
 const { earcut } = require('./earcut')
 
 let divisionCount = 4
+let getYSection = getLatSection
+let getXSection = getLonSection
+let getSectionY = getSectionLat
+let getSectionX = getSectionLon
 
-function earclip (coords, dC = 4) {
+function earclip (coords, dC = 4, dT) { // dC -> divisionCount ; dT -> divisionType
   if (dC) divisionCount = dC
+  if (dT) setupDivisionType(dT)
 
   const vertices = []
   const indices = []
@@ -25,6 +30,20 @@ function earclip (coords, dC = 4) {
   return { vertices, indices }
 }
 
+function setupDivisionType (dT) {
+  if (dT === 'uv') {
+    getYSection = getUsection
+    getXSection = getUsection
+    getSectionY = getSectionU
+    getSectionX = getSectionU
+  } else { // dT === 'll
+    getYSection = getLatSection
+    getXSection = getLonSection
+    getSectionY = getSectionLat
+    getSectionX = getSectionLon
+  }
+}
+
 function divideFeature (coords) {
   const sections = {}
 
@@ -35,9 +54,9 @@ function divideFeature (coords) {
   let section
 
   for (let i = 1, cl = coords.length; i < cl; i++) {
-    const lonSection = getXSection(coords[i][0])
-    const latSection = getYSection(coords[i][1])
-    section = `${lonSection}_${latSection}`
+    const xSection = getXSection(coords[i][0])
+    const ySection = getYSection(coords[i][1])
+    section = `${xSection}_${ySection}`
     if (section === currentSection) { // we still in the same section, so just keep adding data
       sectionCoords.push(coords[i])
     } else { // crossed into a new section
@@ -75,28 +94,28 @@ function divideFeature (coords) {
 
 function getIntersections (p1, p2, sections) {
   // work our way from one sector the other, adding sections as we go
-  let p1LonSection = getXSection(p1[0])
-  let p1LatSection = getYSection(p1[1])
-  let p2LonSection = getXSection(p2[0])
-  let p2LatSection = getYSection(p2[1])
+  let p1XSection = getXSection(p1[0])
+  let p1YSection = getYSection(p1[1])
+  let p2XSection = getXSection(p2[0])
+  let p2YSection = getYSection(p2[1])
 
   let points = []
 
   // get the bounding box of sections
   let top, bottom, left, right
-  if (p2LatSection > p1LatSection) {
-    top = p2LatSection
-    bottom = p1LatSection
+  if (p2YSection > p1YSection) {
+    top = p2YSection
+    bottom = p1YSection
   } else {
-    top = p1LatSection
-    bottom = p2LatSection
+    top = p1YSection
+    bottom = p2YSection
   }
-  if (p2LonSection < p1LonSection) {
-    left = p2LonSection
-    right = p1LonSection
+  if (p2XSection < p1XSection) {
+    left = p2XSection
+    right = p1XSection
   } else {
-    left = p1LonSection
-    right = p2LonSection
+    left = p1XSection
+    right = p2XSection
   }
 
   // iterate through each section and find the intersection of that line
@@ -122,19 +141,19 @@ function getIntersections (p1, p2, sections) {
   for (let i = 0, pl = points.length - 1; i < pl; i++) {
     // We are interested in saving the line in the "lower" x or y section
     let section
-    p1LonSection = getXSection(points[i][0])
-    p1LatSection = getYSection(points[i][1])
-    p2LonSection = getXSection(points[i + 1][0])
-    p2LatSection = getYSection(points[i + 1][1])
-    if (p1LonSection < p2LonSection) {
-      section = `${p1LonSection}_`
+    p1XSection = getXSection(points[i][0])
+    p1YSection = getYSection(points[i][1])
+    p2XSection = getXSection(points[i + 1][0])
+    p2YSection = getYSection(points[i + 1][1])
+    if (p1XSection < p2XSection) {
+      section = `${p1XSection}_`
     } else {
-      section = `${p2LonSection}_`
+      section = `${p2XSection}_`
     }
-    if (p1LatSection < p2LatSection) {
-      section += p1LatSection
+    if (p1YSection < p2YSection) {
+      section += p1YSection
     } else {
-      section += p2LatSection
+      section += p2YSection
     }
     // save appropriately
     if (sections[section]) {
@@ -165,7 +184,7 @@ function closeSections (sections) {
         startPoints.push({ point: sections[section][sp][0], index: sp })
       }
       // move to corners counter-clockwise until we hit the beginning of one the polys
-      let beginEndSameLine = findPointsInVector(startPoints, last, wall)
+      let beginEndSameLine = findPointsAlongVector(startPoints, last, wall)
       while (!beginEndSameLine.length) {
         if (wall === 0) { // left wall -> bottom-left
           last = [sectionBounds[0], sectionBounds[1]]
@@ -182,7 +201,7 @@ function closeSections (sections) {
         wall++
         if (wall > 3) { wall = 0 }
         // check if the new corner point aligns with a starter point
-        beginEndSameLine = findPointsInVector(startPoints, last, wall)
+        beginEndSameLine = findPointsAlongVector(startPoints, last, wall)
       }
 
       // sort by which points are closest to the endPoint and pick the first
@@ -233,20 +252,28 @@ function addInnerSquares (sections) {
   }
 }
 
-function getYSection (lat) {
+function getLatSection (lat) {
   return Math.floor(divisionCount / 180 * lat + (divisionCount / 2))
 }
 
-function getXSection (lon) {
+function getLonSection (lon) {
   return Math.floor((divisionCount * 2) / 360 * lon + ((divisionCount * 2) / 2))
 }
 
-function getSectionY (section) {
+function getSectionLat (section) {
   return -90 + 180 / divisionCount * section
 }
 
-function getSectionX (section) {
+function getSectionLon (section) {
   return -180 + 360 / (divisionCount * 2) * section
+}
+
+function getUsection (u) {
+  return Math.floor(divisionCount / 2 * u + (divisionCount / 2))
+}
+
+function getSectionU (section) {
+  return -1 + 2 / divisionCount * section
 }
 
 function getSectionBounds (str) {
@@ -284,7 +311,7 @@ function getWall (point, sectionBounds) {
 }
 
 // given a wall (vector direction) check if lastPoint moves towards firstPoint
-function findPointsInVector (startingPoints, lastPoint, wall) {
+function findPointsAlongVector (startingPoints, lastPoint, wall) {
   return startingPoints.reduce((acc, currentValue) => {
     const startPoint = currentValue.point
     if (wall === 0 && startPoint[0] === lastPoint[0] && startPoint[1] <= lastPoint[1]) { // left wall

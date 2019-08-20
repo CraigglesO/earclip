@@ -6,14 +6,13 @@ let getXSection = getLonSection
 let getSectionY = getSectionLat
 let getSectionX = getSectionLon
 
-function earclip (coords, dC = 0, dT = 'll', face = 0) { // dC -> divisionCount ; dT -> divisionType
+function earclip (coords, dC = 0, dT = 'll') { // dC -> divisionCount ; dT -> divisionType
   divisionCount = dC
   setupDivisionType(dT)
-  const clockwise = (face >= 3) ? true : false
 
   const vertices = []
   const indices = []
-  const sections = divideFeature(coords, clockwise)
+  const sections = divideFeature(coords)
 
   let offset = 0
 
@@ -45,7 +44,7 @@ function setupDivisionType (dT) {
   }
 }
 
-function divideFeature (coords, clockwise) {
+function divideFeature (coords) {
   const sections = {}
 
   const currentLonSection = getXSection(coords[0][0])
@@ -83,8 +82,8 @@ function divideFeature (coords, clockwise) {
   if (sectionCoords.length) { // check if we have leftovers, we reconnect it to the beginning
     if (sections[section]) { // the area is large enough to encompass multiple sections so we are back at the beginning
       sections[section][0] = sectionCoords.concat(sections[section][0])
-      closeSections(sections, clockwise)
-      addInnerSquares(sections, clockwise)
+      closeSections(sections)
+      addInnerSquares(sections)
     } else { // small enough that this is the only data
       sections[section] = [sectionCoords]
     }
@@ -169,7 +168,7 @@ function getIntersections (p1, p2, sections) {
 }
 
 // NEXT: for each section go from last point to first point, following edge points counter-clockwise
-function closeSections (sections, clockwise) {
+function closeSections (sections) {
   for (const section in sections) {
     for (let s = 0; s < sections[section].length; s++) {
       const poly = sections[section][s]
@@ -185,7 +184,7 @@ function closeSections (sections, clockwise) {
         startPoints.push({ point: sections[section][sp][0], index: sp })
       }
       // move to corners counter-clockwise until we hit the beginning of one the polys
-      let beginEndSameLine = findPointsAlongVector(startPoints, last, wall, clockwise)
+      let beginEndSameLine = findPointsAlongVector(startPoints, last, wall)
       while (!beginEndSameLine.length) {
         if (wall === 0) { // left wall -> bottom-left
           last = [sectionBounds[0], sectionBounds[1]]
@@ -199,12 +198,10 @@ function closeSections (sections, clockwise) {
         // add the new corner point
         poly.push(last)
         // update the wall
-        if (clockwise) wall--
-        else wall++
+        wall++
         if (wall > 3) wall = 0
-        else if (wall < 0) wall = 3
         // check if the new corner point aligns with a starter point
-        beginEndSameLine = findPointsAlongVector(startPoints, last, wall, clockwise)
+        beginEndSameLine = findPointsAlongVector(startPoints, last, wall)
       }
 
       // sort by which points are closest to the endPoint and pick the first
@@ -314,29 +311,17 @@ function getWall (point, sectionBounds) {
 }
 
 // given a wall (vector direction) check if lastPoint moves towards firstPoint
-function findPointsAlongVector (startingPoints, lastPoint, wall, clockwise) {
+function findPointsAlongVector (startingPoints, lastPoint, wall) {
   return startingPoints.reduce((acc, currentValue) => {
     const startPoint = currentValue.point
-    if (clockwise) {
-      if (wall === 0 && startPoint[0] === lastPoint[0] && startPoint[1] >= lastPoint[1]) { // left wall
-        acc.push(currentValue)
-      } else if (wall === 1 && startPoint[1] === lastPoint[1] && startPoint[0] <= lastPoint[0]) { // bottom wall
-        acc.push(currentValue)
-      } else if (wall === 2 && startPoint[0] === lastPoint[0] && startPoint[1] <= lastPoint[1]) { // right wall
-        acc.push(currentValue)
-      } else if (wall === 3 && startPoint[1] === lastPoint[1] && startPoint[0] >= lastPoint[0]) { // top wall
-        acc.push(currentValue)
-      }
-    } else {
-      if (wall === 0 && startPoint[0] === lastPoint[0] && startPoint[1] <= lastPoint[1]) { // left wall
-        acc.push(currentValue)
-      } else if (wall === 1 && startPoint[1] === lastPoint[1] && startPoint[0] >= lastPoint[0]) { // bottom wall
-        acc.push(currentValue)
-      } else if (wall === 2 && startPoint[0] === lastPoint[0] && startPoint[1] >= lastPoint[1]) { // right wall
-        acc.push(currentValue)
-      } else if (wall === 3 && startPoint[1] === lastPoint[1] && startPoint[0] <= lastPoint[0]) { // top wall
-        acc.push(currentValue)
-      }
+    if (wall === 0 && startPoint[0] === lastPoint[0] && startPoint[1] <= lastPoint[1]) { // left wall
+      acc.push(currentValue)
+    } else if (wall === 1 && startPoint[1] === lastPoint[1] && startPoint[0] >= lastPoint[0]) { // bottom wall
+      acc.push(currentValue)
+    } else if (wall === 2 && startPoint[0] === lastPoint[0] && startPoint[1] >= lastPoint[1]) { // right wall
+      acc.push(currentValue)
+    } else if (wall === 3 && startPoint[1] === lastPoint[1] && startPoint[0] <= lastPoint[0]) { // top wall
+      acc.push(currentValue)
     }
 
     return acc

@@ -22,7 +22,7 @@ const featureCollection = {
 
 const australia = JSON.parse(fs.readFileSync('./featureCollections/australia.s2json', 'utf8'))
 // australia.features = [australia.features[29]]
-australia.features = [australia.features[1]]
+australia.features = [australia.features[0]]
 
 // console.time('total')
 australia.features.forEach((feature, i) => {

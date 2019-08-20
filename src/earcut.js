@@ -1,14 +1,14 @@
-function earcut (data, holeIndices, offset = 0, rotation = true) {
+function earcut (data, holeIndices, offset = 0) {
   const hasHoles = holeIndices && holeIndices.length
   const outerLen = hasHoles ? holeIndices[0] * 2 : data.length
-  let outerNode = linkedList(data, 0, outerLen, rotation)
+  let outerNode = linkedList(data, 0, outerLen, true)
   const triangles = []
 
   if (!outerNode || outerNode.next === outerNode.prev) return triangles
 
   let minX, minY, maxX, maxY, x, y, invSize
 
-  if (hasHoles) outerNode = eliminateHoles(data, holeIndices, outerNode, rotation)
+  if (hasHoles) outerNode = eliminateHoles(data, holeIndices, outerNode)
 
   // if the shape is not too simple, we'll use z-order curve hash later; calculate polygon bbox
   if (data.length > 160) {
@@ -252,7 +252,7 @@ function splitEarcut (start, triangles, minX, minY, invSize, offset) {
 }
 
 // link every hole into the outer loop, producing a single-ring polygon without holes
-function eliminateHoles (data, holeIndices, outerNode, rotation) {
+function eliminateHoles (data, holeIndices, outerNode) {
   const queue = []
 
   let i; let len; let start; let end; let list
@@ -260,7 +260,7 @@ function eliminateHoles (data, holeIndices, outerNode, rotation) {
   for (i = 0, len = holeIndices.length; i < len; i++) {
     start = holeIndices[i] * 2
     end = i < len - 1 ? holeIndices[i + 1] * 2 : data.length
-    list = linkedList(data, start, end, !rotation)
+    list = linkedList(data, start, end, false)
     if (list === list.next) list.steiner = true
     queue.push(getLeftmost(list))
   }

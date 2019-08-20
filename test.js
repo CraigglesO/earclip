@@ -13,16 +13,16 @@
 // ]))
 
 const fs = require('fs')
-const earclip = require('./lib').default
+const { earclip } = require('./lib')
 
 const featureCollection = {
-  'type': 'FeatureCollection',
-  'features': []
+  type: 'FeatureCollection',
+  features: []
 }
 
-let australia = JSON.parse(fs.readFileSync('./featureCollections/australia.s2json', 'utf8'))
+const australia = JSON.parse(fs.readFileSync('./featureCollections/australia.s2json', 'utf8'))
 // australia.features = [australia.features[29]]
-australia.features = [australia.features[0]]
+australia.features = [australia.features[1]]
 
 // console.time('total')
 australia.features.forEach((feature, i) => {
@@ -32,7 +32,7 @@ australia.features.forEach((feature, i) => {
   // }
   // console.log(feature.geometry.coordinates[0].length)
   // console.time('earclip')
-  const data = earclip(feature.geometry.coordinates[0], 16, 'uv')
+  const data = earclip(feature.geometry.coordinates[0], 16, 'uv', feature.face)
   // console.log('data', data)
   // console.timeEnd('earclip')
 

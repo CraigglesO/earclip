@@ -331,5 +331,5 @@ function flatten (feature) {
   return [].concat(...feature)
 }
 
-exports.default = earclip
+exports.earclip = earclip
 exports.flatten = flatten

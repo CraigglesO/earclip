@@ -20,7 +20,7 @@ const featureCollection = {
   features: []
 }
 
-const australia = JSON.parse(fs.readFileSync('./featureCollections/australiaF3.json', 'utf8'))
+const australia = JSON.parse(fs.readFileSync('./featureCollections/countriesF1.json', 'utf8'))
 // australia.features = [australia.features[29]]
 // australia.features = [australia.features[0]]
 

@@ -30,21 +30,23 @@ function earclip (coords, dC = 0, extent) { // dC -> divisionCount ; dT -> divis
 function divideFeature (coords) {
   const sections = {}
 
-  const currentLonSection = getUsection(coords[0][0])
-  const currentLatSection = getUsection(coords[0][1])
+  const currentLonSection = getSsection(coords[0][0])
+  const currentLatSection = getSsection(coords[0][1])
   let currentSection = `${currentLonSection}_${currentLatSection}`
   let sectionCoords = [coords[0]]
   let section
 
   for (let i = 1, cl = coords.length; i < cl; i++) {
-    const xSection = getUsection(coords[i][0])
-    const ySection = getUsection(coords[i][1])
-    section = `${xSection}_${ySection}`
+    const sSection = getSsection(coords[i][0])
+    const tSection = getSsection(coords[i][1])
+    section = `${sSection}_${tSection}`
     if (section === currentSection) { // we still in the same section, so just keep adding data
       sectionCoords.push(coords[i])
     } else { // crossed into a new section
       // create points at intersections (they may be the same point)
       const [firstIntersectionCoord, lastIntersectionCoord] = getIntersections(coords[i - 1], coords[i], sections)
+      if (lastIntersectionCoord[0] === 3072 && lastIntersectionCoord[1] === 258.5) {
+      }
       // add the point to end of the current section
       sectionCoords.push(firstIntersectionCoord)
       // sometimes we hit an edge and its considered an intersection, so don't add it
@@ -77,42 +79,42 @@ function divideFeature (coords) {
 
 function getIntersections (p1, p2, sections) {
   // work our way from one sector the other, adding sections as we go
-  let p1XSection = getUsection(p1[0])
-  let p1YSection = getUsection(p1[1])
-  let p2XSection = getUsection(p2[0])
-  let p2YSection = getUsection(p2[1])
+  let p1SSection = getSsection(p1[0])
+  let p1TSection = getSsection(p1[1])
+  let p2SSection = getSsection(p2[0])
+  let p2TSection = getSsection(p2[1])
 
   let points = []
 
   // get the bounding box of sections
   let top, bottom, left, right
-  if (p2YSection > p1YSection) {
-    top = p2YSection
-    bottom = p1YSection
+  if (p2TSection > p1TSection) {
+    top = p2TSection
+    bottom = p1TSection
   } else {
-    top = p1YSection
-    bottom = p2YSection
+    top = p1TSection
+    bottom = p2TSection
   }
-  if (p2XSection < p1XSection) {
-    left = p2XSection
-    right = p1XSection
+  if (p2SSection < p1SSection) {
+    left = p2SSection
+    right = p1SSection
   } else {
-    left = p1XSection
-    right = p2XSection
+    left = p1SSection
+    right = p2SSection
   }
 
   // iterate through each section and find the intersection of that line
   // top to bottom
   for (let j = bottom + 1; j <= top; j++) {
-    const sectionLat = getSectionU(j)
-    const intersect = lineIntersect(p1[0], p1[1], p2[0], p2[1], -180, sectionLat, 180, sectionLat)
-    points.push([intersect[0], sectionLat])
+    const sectionT = getSectionS(j)
+    const intersect = lineIntersect(p1[0], p1[1], p2[0], p2[1], -2, sectionT, 2, sectionT)
+    points.push([intersect[0], sectionT])
   }
   // left to right
   for (let i = left + 1; i <= right; i++) {
-    const sectionLon = getSectionU(i)
-    const intersect = lineIntersect(p1[0], p1[1], p2[0], p2[1], sectionLon, -90, sectionLon, 90)
-    points.push([sectionLon, intersect[1]])
+    const sectionS = getSectionS(i)
+    const intersect = lineIntersect(p1[0], p1[1], p2[0], p2[1], sectionS, -2, sectionS, 2)
+    points.push([sectionS, intersect[1]])
   }
 
   // organize by closest to the initial point (to maintain counter-clockwise) TODO: improve
@@ -124,19 +126,19 @@ function getIntersections (p1, p2, sections) {
   for (let i = 0, pl = points.length - 1; i < pl; i++) {
     // We are interested in saving the line in the "lower" x or y section
     let section
-    p1XSection = getUsection(points[i][0])
-    p1YSection = getUsection(points[i][1])
-    p2XSection = getUsection(points[i + 1][0])
-    p2YSection = getUsection(points[i + 1][1])
-    if (p1XSection < p2XSection) {
-      section = `${p1XSection}_`
+    p1SSection = getSsection(points[i][0])
+    p1TSection = getSsection(points[i][1])
+    p2SSection = getSsection(points[i + 1][0])
+    p2TSection = getSsection(points[i + 1][1])
+    if (p1SSection < p2SSection) {
+      section = `${p1SSection}_`
     } else {
-      section = `${p2XSection}_`
+      section = `${p2SSection}_`
     }
-    if (p1YSection < p2YSection) {
-      section += p1YSection
+    if (p1TSection < p2TSection) {
+      section += p1TSection
     } else {
-      section += p2YSection
+      section += p2TSection
     }
     // save appropriately
     if (sections[section]) {
@@ -209,21 +211,21 @@ function closeSections (sections) {
 // COUNTRIES.features[616] -> TODO: Don't fill in the squares that aren't actually inside the polygon
 function addInnerSquares (sections) {
   const sectionDepth = {}
-  // organize the sections as lon->lat
+  // organize the sections as s->t
   for (const section in sections) {
-    const lonLat = section.split('_').map(x => parseInt(x))
-    if (sectionDepth[lonLat[0]]) {
-      sectionDepth[lonLat[0]].push(lonLat[1])
+    const st = section.split('_').map(x => parseInt(x))
+    if (sectionDepth[st[0]]) {
+      sectionDepth[st[0]].push(st[1])
     } else {
-      sectionDepth[lonLat[0]] = [lonLat[1]]
+      sectionDepth[st[0]] = [st[1]]
     }
   }
-  for (const lon in sectionDepth) {
-    const lats = sectionDepth[lon].sort((a, b) => { return a - b })
-    for (let i = lats[0], ll = lats[lats.length - 1]; i < ll; i++) {
-      if (!sections[`${lon}_${i}`]) {
-        const bounds = getSectionBounds(`${lon}_${i}`)
-        sections[`${lon}_${i}`] = [[
+  for (const s in sectionDepth) {
+    const ts = sectionDepth[s].sort((a, b) => { return a - b })
+    for (let i = ts[0], ll = ts[ts.length - 1]; i < ll; i++) {
+      if (!sections[`${s}_${i}`]) {
+        const bounds = getSectionBounds(`${s}_${i}`)
+        sections[`${s}_${i}`] = [[
           [bounds[0], bounds[1]],
           [bounds[0], bounds[3]],
           [bounds[2], bounds[3]],
@@ -236,11 +238,11 @@ function addInnerSquares (sections) {
 }
 
 // function getLatSection (lat) {
-//   return Math.floor(divisionCount / 180 * lat + (divisionCount / 2))
+//   return Math.floor(divisionCount / 180 * lat + Math.floor(divisionCount / 2))
 // }
 //
 // function getLonSection (lon) {
-//   return Math.floor((divisionCount * 2) / 360 * lon + ((divisionCount * 2) / 2))
+//   return Math.floor((divisionCount * 2) / 360 * lon + Math.floor((divisionCount * 2) / 2))
 // }
 //
 // function getSectionLat (section) {
@@ -252,25 +254,25 @@ function addInnerSquares (sections) {
 // }
 
 // function getUsection (u) {
-//   return Math.floor(divisionCount / 2 * u + (divisionCount / 2))
+//   return Math.floor(divisionCount / 2 * u + Math.floor(divisionCount / 2))
 // }
 //
 // function getSectionU (section) {
 //   return -1 + 2 / divisionCount * section
 // }
 
-function getUsection (u) {
-  return Math.floor(divisionCount / EXTENT * u + (divisionCount / EXTENT))
+function getSsection (s) {
+  return Math.floor(divisionCount / EXTENT * s + Math.floor(divisionCount / EXTENT))
 }
 
-function getSectionU (section) {
+function getSectionS (section) {
   return EXTENT / divisionCount * section
 }
 
 function getSectionBounds (str) {
   const sections = str.split('_').map(x => parseInt(x))
 
-  return [getSectionU(sections[0]), getSectionU(sections[1]), getSectionU(sections[0] + 1), getSectionU(sections[1] + 1)]
+  return [getSectionS(sections[0]), getSectionS(sections[1]), getSectionS(sections[0] + 1), getSectionS(sections[1] + 1)]
 }
 
 function lineIntersect (x1, y1, x2, y2, x3, y3, x4, y4) {

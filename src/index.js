@@ -270,7 +270,7 @@ function getSectionU (section) {
 function getSectionBounds (str) {
   const sections = str.split('_').map(x => parseInt(x))
 
-  return [getUsection(sections[0]), getUsection(sections[1]), getUsection(sections[0] + 1), getUsection(sections[1] + 1)]
+  return [getSectionU(sections[0]), getSectionU(sections[1]), getSectionU(sections[0] + 1), getSectionU(sections[1] + 1)]
 }
 
 function lineIntersect (x1, y1, x2, y2, x3, y3, x4, y4) {

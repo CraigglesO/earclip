@@ -211,9 +211,11 @@ function closeSections (sections) {
 // COUNTRIES.features[616] -> TODO: Don't fill in the squares that aren't actually inside the polygon
 function addInnerSquares (sections) {
   const sectionDepth = {}
+  const sectionsPoly = []
   // organize the sections as s->t
   for (const section in sections) {
     const st = section.split('_').map(x => parseInt(x))
+    sectionsPoly.push(st)
     if (sectionDepth[st[0]]) {
       sectionDepth[st[0]].push(st[1])
     } else {
@@ -222,10 +224,10 @@ function addInnerSquares (sections) {
   }
   for (const s in sectionDepth) {
     const ts = sectionDepth[s].sort((a, b) => { return a - b })
-    for (let i = ts[0], ll = ts[ts.length - 1]; i < ll; i++) {
-      if (!sections[`${s}_${i}`]) {
-        const bounds = getSectionBounds(`${s}_${i}`)
-        sections[`${s}_${i}`] = [[
+    for (let t = ts[0], ll = ts[ts.length - 1]; t < ll; t++) {
+      if (!sections[`${s}_${t}`] && inside([s, t], sectionsPoly)) {
+        const bounds = getSectionBounds(`${s}_${t}`)
+        sections[`${s}_${t}`] = [[
           [bounds[0], bounds[1]],
           [bounds[0], bounds[3]],
           [bounds[2], bounds[3]],
@@ -235,6 +237,24 @@ function addInnerSquares (sections) {
       }
     }
   }
+}
+
+function inside (point, vs) {
+  const x = point[0]
+  const y = point[1]
+
+  let inside = false
+  for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+    const xi = vs[i][0]
+    const yi = vs[i][1]
+    const xj = vs[j][0]
+    const yj = vs[j][1]
+
+    const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)
+    if (intersect) inside = !inside
+  }
+
+  return inside
 }
 
 // function getLatSection (lat) {

@@ -97,7 +97,7 @@ function divideFeature (rings) {
 
   if (Object.keys(sections).length > 1) { // we have multiple sections, so we need to close the geometry
     closeSections(sections)
-    addInnerSquares(sections)
+    // addInnerSquares(sections)
   }
 
   return sections
@@ -285,7 +285,7 @@ function inside (point, vs) {
 }
 
 function getSsection (s) {
-  return Math.floor(divisionCount / EXTENT * s + Math.floor(divisionCount / EXTENT))
+  return Math.floor(divisionCount / EXTENT * s + (divisionCount / EXTENT))
 }
 
 function getSectionS (section) {

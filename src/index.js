@@ -30,9 +30,9 @@ function earclip (coords, dC = 0, extent) { // dC -> divisionCount ; dT -> divis
 function divideFeature (coords) {
   const sections = {}
 
-  const currentLonSection = getSsection(coords[0][0])
-  const currentLatSection = getSsection(coords[0][1])
-  let currentSection = `${currentLonSection}_${currentLatSection}`
+  const currentSSection = getSsection(coords[0][0])
+  const currentTSection = getSsection(coords[0][1])
+  let currentSection = `${currentSSection}_${currentTSection}`
   let sectionCoords = [coords[0]]
   let section
 
@@ -257,30 +257,6 @@ function inside (point, vs) {
   return inside
 }
 
-// function getLatSection (lat) {
-//   return Math.floor(divisionCount / 180 * lat + Math.floor(divisionCount / 2))
-// }
-//
-// function getLonSection (lon) {
-//   return Math.floor((divisionCount * 2) / 360 * lon + Math.floor((divisionCount * 2) / 2))
-// }
-//
-// function getSectionLat (section) {
-//   return -90 + 180 / divisionCount * section
-// }
-//
-// function getSectionLon (section) {
-//   return -180 + 360 / (divisionCount * 2) * section
-// }
-
-// function getUsection (u) {
-//   return Math.floor(divisionCount / 2 * u + Math.floor(divisionCount / 2))
-// }
-//
-// function getSectionU (section) {
-//   return -1 + 2 / divisionCount * section
-// }
-
 function getSsection (s) {
   return Math.floor(divisionCount / EXTENT * s + Math.floor(divisionCount / EXTENT))
 }
@@ -341,9 +317,34 @@ function findPointsAlongVector (startingPoints, lastPoint, wall) {
   }, [])
 }
 
-function flatten (feature) {
-  return [].concat(...feature)
+function flatten (sectionBlocks) {
+  return [].concat(...sectionBlocks)
 }
 
 exports.earclip = earclip
 exports.flatten = flatten
+
+// SAVED FOR POSTERITY
+// function getLatSection (lat) {
+//   return Math.floor(divisionCount / 180 * lat + Math.floor(divisionCount / 2))
+// }
+//
+// function getLonSection (lon) {
+//   return Math.floor((divisionCount * 2) / 360 * lon + Math.floor((divisionCount * 2) / 2))
+// }
+//
+// function getSectionLat (section) {
+//   return -90 + 180 / divisionCount * section
+// }
+//
+// function getSectionLon (section) {
+//   return -180 + 360 / (divisionCount * 2) * section
+// }
+
+// function getUsection (u) {
+//   return Math.floor(divisionCount / 2 * u + Math.floor(divisionCount / 2))
+// }
+//
+// function getSectionU (section) {
+//   return -1 + 2 / divisionCount * section
+// }

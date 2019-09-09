@@ -37,16 +37,19 @@ function earclip (rings, dC = 0, extent) { // dC -> divisionCount
 }
 
 function divideFeature (rings) {
+  const sectionPoly = []
   const sections = {} // sections[sectionID] = Array< Array<[number, number]> > (array of lines)
 
   for (let r = 0, rl = rings.length; r < rl; r++) {
     const ring = rings[r]
+    const sectionRing = []
     const ringSections = {}
 
     const currentSSection = getSsection(ring[0][0])
     const currentTSection = getSsection(ring[0][1])
     let currentSection = `${currentSSection}_${currentTSection}`
     let sectionCoords = [ring[0]]
+    sectionRing.push([currentSSection, currentTSection])
     if (r === 0) sectionCoords.outer = true
     else sectionCoords.outer = false
     let section
@@ -58,6 +61,7 @@ function divideFeature (rings) {
       if (section === currentSection) { // we still in the same section, so just keep adding data
         sectionCoords.push(ring[i])
       } else { // crossed into a new section
+        sectionRing.push([sSection, tSection])
         // create points at intersections (they may be the same point)
         const [firstIntersectionCoord, lastIntersectionCoord] = getIntersections(ring[i - 1], ring[i], sectionCoords.outer, ringSections)
         // add the point to end of the current section
@@ -93,11 +97,14 @@ function divideFeature (rings) {
       if (sections[key]) sections[key].push(...ringSections[key])
       else sections[key] = ringSections[key]
     }
+
+    // lastly store the sectionRing
+    sectionPoly.push(sectionRing)
   }
 
   if (Object.keys(sections).length > 1) { // we have multiple sections, so we need to close the geometry
     closeSections(sections)
-    addInnerSquares(sections)
+    addInnerSquares(sections, sectionPoly)
   }
 
   return sections
@@ -244,23 +251,12 @@ function closeSections (sections) {
 }
 
 // add the appropriate squares leftover
-function addInnerSquares (sections) {
-  const sectionDepth = {}
-  const sectionsPoly = []
-  // organize the sections as s->t
-  for (const section in sections) {
-    const st = section.split('_').map(x => parseInt(x))
-    sectionsPoly.push(st)
-    if (sectionDepth[st[0]]) {
-      sectionDepth[st[0]].push(st[1])
-    } else {
-      sectionDepth[st[0]] = [st[1]]
-    }
-  }
-  for (const s in sectionDepth) {
-    const ts = sectionDepth[s].sort((a, b) => { return a - b })
-    for (let t = ts[0], ll = ts[ts.length - 1]; t < ll; t++) {
-      if (!sections[`${s}_${t}`] && inside([s, t], sectionsPoly)) {
+function addInnerSquares (sections, sectionPoly) {
+  const { minS, maxS, minT, maxT } = bbox(sectionPoly)
+
+  for (let s = minS; s < maxS; s++) {
+    for (let t = minT; t < maxT; t++) {
+      if (!sections[`${s}_${t}`] && inside([s, t], sectionPoly)) {
         const bounds = getSectionBounds(`${s}_${t}`)
         sections[`${s}_${t}`] = [[
           [bounds[0], bounds[1]],
@@ -274,22 +270,60 @@ function addInnerSquares (sections) {
   }
 }
 
-function inside (point, vs) {
-  const x = point[0]
-  const y = point[1]
-
-  let inside = false
-  for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-    const xi = vs[i][0]
-    const yi = vs[i][1]
-    const xj = vs[j][0]
-    const yj = vs[j][1]
-
-    const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)
-    if (intersect) inside = !inside
+function bbox (poly) {
+  let minS = Infinity
+  let maxS = -Infinity
+  let minT = Infinity
+  let maxT = -Infinity
+  for (let r = 0, pl = poly.length; r < pl; r++) {
+    const ring = poly[r]
+    for (let p = 0, rl = ring.length - 1; p < rl; p++) {
+      const point = ring[p]
+      if (point[0] < minS) minS = point[0]
+      else if (point[0] > maxS) maxS = point[0]
+      if (point[1] < minT) minT = point[1]
+      else if (point[1] > maxT) maxT = point[1]
+    }
   }
 
-  return inside
+  return { minS, maxS, minT, maxT }
+}
+
+function inside (point, poly) {
+  let insidePoly = false
+  // check if it is in the outer ring first
+  if (inRing(point, poly[0])) {
+    const ringLength = poly.length
+    let inHole = false
+    let k = 1
+    // check for the point in any of the holes
+    while (k < ringLength && !inHole) {
+      if (inRing(point, poly[k])) inHole = true
+      k++
+    }
+    if (!inHole) insidePoly = true
+  }
+  return insidePoly
+}
+
+function inRing (point, ring) {
+  let isInside = false
+  if (ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]) {
+    ring = ring.slice(0, ring.length - 1)
+  }
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0]
+    const yi = ring[i][1]
+    const xj = ring[j][0]
+    const yj = ring[j][1]
+    // const onBoundary = (point[1] * (xi - xj) + yi * (xj - point[0]) + yj * (point[0] - xi) === 0) &&
+    //   ((xi - point[0]) * (xj - point[0]) <= 0) && ((yi - point[1]) * (yj - point[1]) <= 0)
+    // if (onBoundary) return true
+    const intersect = ((yi > point[1]) !== (yj > point[1])) &&
+      (point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi)
+    if (intersect) isInside = !isInside
+  }
+  return isInside
 }
 
 function getSsection (s) {

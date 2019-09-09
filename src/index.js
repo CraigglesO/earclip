@@ -3,21 +3,30 @@ const { earcut } = require('./earcut')
 let divisionCount = 0
 let EXTENT = 4096
 
-function earclip (coords, dC = 0, extent) { // dC -> divisionCount ; dT -> divisionType
+function earclip (rings, dC = 0, extent) { // dC -> divisionCount
   divisionCount = dC
   if (extent) EXTENT = extent
 
   const vertices = []
   const indices = []
-  const sections = divideFeature(coords)
+  const sections = divideFeature(rings)
 
   let offset = 0
 
-  for (const section in sections) {
-    const subsection = sections[section]
-    for (let s = 0, sl = subsection.length; s < sl; s++) {
-      const data = flatten(subsection[s])
-      const ind = earcut(data, null, offset)
+  for (const s in sections) {
+    const section = sections[s]
+    for (let s = 0, sl = section.length; s < sl; s++) {
+      const holeIndices = []
+      const data = flatten(section[s])
+      // for all following sections that have outer === false, add them
+      // to data and track their indcies
+      while (s + 1 < sl && !section[s + 1].outer) {
+        s++
+        const startHoleIndex = data.length / 2
+        data.push(...flatten(section[s]))
+        holeIndices.push(startHoleIndex)
+      }
+      const ind = earcut(data, holeIndices, offset)
       offset += data.length / 2
       vertices.push(...data)
       indices.push(...ind)
@@ -27,51 +36,68 @@ function earclip (coords, dC = 0, extent) { // dC -> divisionCount ; dT -> divis
   return { vertices, indices }
 }
 
-function divideFeature (coords) {
-  const sections = {}
+function divideFeature (rings) {
+  const sections = {} // sections[sectionID] = Array< Array<[number, number]> > (array of lines)
 
-  const currentSSection = getSsection(coords[0][0])
-  const currentTSection = getSsection(coords[0][1])
-  let currentSection = `${currentSSection}_${currentTSection}`
-  let sectionCoords = [coords[0]]
-  let section
+  for (let r = 0, rl = rings.length; r < rl; r++) {
+    const ring = rings[r]
+    const ringSections = {}
 
-  for (let i = 1, cl = coords.length; i < cl; i++) {
-    const sSection = getSsection(coords[i][0])
-    const tSection = getSsection(coords[i][1])
-    section = `${sSection}_${tSection}`
-    if (section === currentSection) { // we still in the same section, so just keep adding data
-      sectionCoords.push(coords[i])
-    } else { // crossed into a new section
-      // create points at intersections (they may be the same point)
-      const [firstIntersectionCoord, lastIntersectionCoord] = getIntersections(coords[i - 1], coords[i], sections)
-      if (lastIntersectionCoord[0] === 3072 && lastIntersectionCoord[1] === 258.5) {
-      }
-      // add the point to end of the current section
-      sectionCoords.push(firstIntersectionCoord)
-      // sometimes we hit an edge and its considered an intersection, so don't add it
-      if (sectionCoords.length === 3 && sectionCoords[2][0] === sectionCoords[1][0] && sectionCoords[2][1] === sectionCoords[1][1]) {
-      } else { // otherwise lets add the data
-        if (sections[currentSection]) { // if currentSection already exists, join it.
-          sections[currentSection].push(sectionCoords)
-        } else { // completely new section data to store
-          sections[currentSection] = [sectionCoords]
+    const currentSSection = getSsection(ring[0][0])
+    const currentTSection = getSsection(ring[0][1])
+    let currentSection = `${currentSSection}_${currentTSection}`
+    let sectionCoords = [ring[0]]
+    if (r === 0) sectionCoords.outer = true
+    else sectionCoords.outer = false
+    let section
+
+    for (let i = 1, cl = ring.length; i < cl; i++) {
+      const sSection = getSsection(ring[i][0])
+      const tSection = getSsection(ring[i][1])
+      section = `${sSection}_${tSection}`
+      if (section === currentSection) { // we still in the same section, so just keep adding data
+        sectionCoords.push(ring[i])
+      } else { // crossed into a new section
+        // create points at intersections (they may be the same point)
+        const [firstIntersectionCoord, lastIntersectionCoord] = getIntersections(ring[i - 1], ring[i], ringSections)
+        // add the point to end of the current section
+        sectionCoords.push(firstIntersectionCoord)
+        // sometimes we hit an edge and its considered an intersection, so don't add it
+        if (sectionCoords.length === 3 && sectionCoords[2][0] === sectionCoords[1][0] && sectionCoords[2][1] === sectionCoords[1][1]) {
+        } else { // otherwise lets add the data
+          if (ringSections[currentSection]) { // if currentSection already exists, join it.
+            ringSections[currentSection].push(sectionCoords)
+          } else { // completely new section data to store
+            ringSections[currentSection] = [sectionCoords]
+          }
         }
+        // and now we start a new sectionCoords and be sure to add the intersection
+        sectionCoords = [lastIntersectionCoord, ring[i]]
+        if (r === 0) sectionCoords.outer = true
+        else sectionCoords.outer = false
+        currentSection = section
       }
-      // and now we start a new sectionCoords and be sure to add the intersection
-      sectionCoords = [lastIntersectionCoord, coords[i]]
-      currentSection = section
+    }
+
+    if (sectionCoords.length) { // check if we have leftovers, we reconnect it to the beginning
+      if (ringSections[section]) { // the area is large enough to encompass multiple ringSections so we are back at the beginning
+        ringSections[section][0] = sectionCoords.concat(ringSections[section][0])
+        ringSections[section][0].outer = sectionCoords.outer
+      } else { // small enough that this is the only data
+        ringSections[section] = [sectionCoords]
+      }
+    }
+
+    // now put all the ring's sections into sections
+    for (const key in ringSections) {
+      if (sections[key]) sections[key].push(...ringSections[key])
+      else sections[key] = ringSections[key]
     }
   }
 
-  if (sectionCoords.length) { // check if we have leftovers, we reconnect it to the beginning
-    if (sections[section]) { // the area is large enough to encompass multiple sections so we are back at the beginning
-      sections[section][0] = sectionCoords.concat(sections[section][0])
-      closeSections(sections)
-      addInnerSquares(sections)
-    } else { // small enough that this is the only data
-      sections[section] = [sectionCoords]
-    }
+  if (Object.keys(sections).length > 1) { // we have multiple sections, so we need to close the geometry
+    closeSections(sections)
+    addInnerSquares(sections)
   }
 
   return sections
@@ -152,13 +178,15 @@ function getIntersections (p1, p2, sections) {
   return [points[0], points[points.length - 1]]
 }
 
-// NEXT: for each section go from last point to first point, following edge points counter-clockwise
+// for each section go from last point to first point, following edge points counter-clockwise
 function closeSections (sections) {
   for (const section in sections) {
     for (let s = 0; s < sections[section].length; s++) {
       const poly = sections[section][s]
       const first = poly[0]
       let last = poly[poly.length - 1]
+      // corner case, a line that already closes on itself
+      if (first[0] === last[0] && first[1] === last[1]) continue
       const sectionBounds = getSectionBounds(section)
       // Wall: left -> 0, bottom -> 1, right -> 2, and top -> 3 (coexists with section bounds)
       let wall = getWall(last, sectionBounds)
@@ -207,8 +235,7 @@ function closeSections (sections) {
   }
 }
 
-// LAST STEP: add the appropriate squares leftover
-// COUNTRIES.features[616] -> TODO: Don't fill in the squares that aren't actually inside the polygon
+// add the appropriate squares leftover
 function addInnerSquares (sections) {
   const sectionDepth = {}
   const sectionsPoly = []
@@ -317,8 +344,8 @@ function findPointsAlongVector (startingPoints, lastPoint, wall) {
   }, [])
 }
 
-function flatten (sectionBlocks) {
-  return [].concat(...sectionBlocks)
+function flatten (sectionPoints) { // convert Array<Point> to Array<number>
+  return [].concat(...sectionPoints)
 }
 
 exports.earclip = earclip

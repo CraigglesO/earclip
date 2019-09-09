@@ -59,7 +59,7 @@ function divideFeature (rings) {
         sectionCoords.push(ring[i])
       } else { // crossed into a new section
         // create points at intersections (they may be the same point)
-        const [firstIntersectionCoord, lastIntersectionCoord] = getIntersections(ring[i - 1], ring[i], ringSections)
+        const [firstIntersectionCoord, lastIntersectionCoord] = getIntersections(ring[i - 1], ring[i], sectionCoords.outer, ringSections)
         // add the point to end of the current section
         sectionCoords.push(firstIntersectionCoord)
         // sometimes we hit an edge and its considered an intersection, so don't add it
@@ -97,18 +97,25 @@ function divideFeature (rings) {
 
   if (Object.keys(sections).length > 1) { // we have multiple sections, so we need to close the geometry
     closeSections(sections)
-    // addInnerSquares(sections)
+    addInnerSquares(sections)
   }
 
   return sections
 }
 
-function getIntersections (p1, p2, sections) {
+function getIntersections (p1, p2, outer, sections) {
   // work our way from one sector the other, adding sections as we go
   let p1SSection = getSsection(p1[0])
   let p1TSection = getSsection(p1[1])
   let p2SSection = getSsection(p2[0])
   let p2TSection = getSsection(p2[1])
+  // console.log('p1', p1)
+  // console.log('p2', p2)
+  // console.log('p1SSection', p1SSection)
+  // console.log('p1TSection', p1TSection)
+  // console.log('p2SSection', p2SSection)
+  // console.log('p2TSection', p2TSection)
+  // console.log('outer', outer)
 
   let points = []
 
@@ -143,14 +150,13 @@ function getIntersections (p1, p2, sections) {
     points.push([sectionS, intersect[1]])
   }
 
-  // organize by closest to the initial point (to maintain counter-clockwise) TODO: improve
+  // organize by closest to the initial point (to maintain counter-clockwise)
   points = points.sort((a, b) => {
     return Math.sqrt(Math.pow(p1[0] - a[0], 2) + Math.pow(p1[1] - a[1], 2)) - Math.sqrt(Math.pow(p1[0] - b[0], 2) + Math.pow(p1[1] - b[1], 2))
   })
 
   // create/add the middle sections
   for (let i = 0, pl = points.length - 1; i < pl; i++) {
-    // We are interested in saving the line in the "lower" x or y section
     let section
     p1SSection = getSsection(points[i][0])
     p1TSection = getSsection(points[i][1])
@@ -167,10 +173,12 @@ function getIntersections (p1, p2, sections) {
       section += p2TSection
     }
     // save appropriately
+    const sectionCoords = [points[i], points[i + 1]]
+    sectionCoords.outer = outer
     if (sections[section]) {
-      sections[section].push([points[i], points[i + 1]])
+      sections[section].push(sectionCoords)
     } else {
-      sections[section] = [[points[i], points[i + 1]]]
+      sections[section] = [sectionCoords]
     }
   }
 
@@ -185,7 +193,7 @@ function closeSections (sections) {
       const poly = sections[section][s]
       const first = poly[0]
       let last = poly[poly.length - 1]
-      // corner case, a line that already closes on itself
+      // corner case, a line that already closes on itself (could be an inner ring [hole])
       if (first[0] === last[0] && first[1] === last[1]) continue
       const sectionBounds = getSectionBounds(section)
       // Wall: left -> 0, bottom -> 1, right -> 2, and top -> 3 (coexists with section bounds)

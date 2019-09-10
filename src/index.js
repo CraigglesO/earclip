@@ -13,11 +13,8 @@ function earclip (rings, dC = 0, extent) { // dC -> divisionCount
 
   let offset = 0
 
-  // console.log('FINISH')
-
   for (const s in sections) {
     const section = sections[s]
-    // if (s === '8_12') console.log('section', section)
     // corner case: if first ring of section is an inner ring, just add a box:
     if (!section[0].outer) section.unshift(createBox(s))
     for (let s = 0, sl = section.length; s < sl; s++) {
@@ -63,9 +60,6 @@ function divideFeature (rings) {
       const sSection = getSsection(ring[i][0])
       const tSection = getSsection(ring[i][1])
       section = `${sSection}_${tSection}`
-      // if (section === '8_12') {
-      //   console.log('POINT', i, ring[i])
-      // }
       if (section === currentSection) { // we still in the same section, so just keep adding data
         sectionCoords.push(ring[i])
       } else { // crossed into a new section
@@ -77,17 +71,6 @@ function divideFeature (rings) {
         // sometimes we hit an edge and its considered an intersection, so don't add it
         if (sectionCoords.length === 3 && sectionCoords[2][0] === sectionCoords[1][0] && sectionCoords[2][1] === sectionCoords[1][1]) {
         } else { // otherwise lets add the data
-          // if (currentSection === '8_12') {
-          //   console.log('SAVE')
-          //   console.log(sectionCoords)
-          //   console.log(getSectionBounds('8_12'))
-          //   // console.log('ring', ring)
-          //   for (let t = 0; t < ring.length; t++) {
-          //     console.log(t, ring[t])
-          //   }
-          //   console.log('r', r)
-          //   console.log('i', i)
-          // }
           if (!sectionCoords.outer && (sectionCoords[0][0] !== sectionCoords[sectionCoords.length - 1][0] || sectionCoords[0][1] !== sectionCoords[sectionCoords.length - 1][1])) {
             sectionCoords.outer = true
           }
@@ -107,14 +90,15 @@ function divideFeature (rings) {
 
     if (sectionCoords.length) { // check if we have leftovers, we reconnect it to the beginning
       if (ringSections[section]) { // the area is large enough to encompass multiple ringSections so we are back at the beginning
+        sectionCoords.pop() // remove the extra point (polys start and end on the same point)
         ringSections[section][0] = sectionCoords.concat(ringSections[section][0])
-        ringSections[section][0].outer = sectionCoords.outer
+        ringSections[section][0].outer = true // since we know for a fact the ring leaves the bounding box, it must be true
       } else { // small enough that this is the only data
         ringSections[section] = [sectionCoords]
       }
     }
 
-    // now put all the ring's sections into sections
+    // now put all the ring's sections into the main sections array
     for (const key in ringSections) {
       if (sections[key]) {
         // store all the rings, ensuring proper ordering
@@ -216,11 +200,7 @@ function getIntersections (p1, p2, outer, sections) {
 
 // for each section go from last point to first point, following edge points counter-clockwise
 function closeSections (sections) {
-  // console.log('CLOSE')
   for (const section in sections) {
-    // if (section === '8_12') {
-    //   sections[section].shift()
-    // }
     for (let s = 0; s < sections[section].length; s++) {
       const poly = sections[section][s]
       const first = poly[0]
@@ -230,11 +210,6 @@ function closeSections (sections) {
       const sectionBounds = getSectionBounds(section)
       // Wall: left -> 0, bottom -> 1, right -> 2, and top -> 3 (coexists with section bounds)
       let wall = getWall(last, sectionBounds)
-
-      // if (section === '8_12') {
-      //   console.log('TO CLOSE')
-      //   console.log(poly)
-      // }
 
       // add all the starting points to check against
       const startPoints = [{ point: first, index: 0 }]

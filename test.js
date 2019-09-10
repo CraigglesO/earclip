@@ -64,7 +64,7 @@ const featureCollection = {
 
 const sea = JSON.parse(fs.readFileSync('./featureCollections/sea.json', 'utf8'))
 
-const coords = sea.features[0].geometry[0]
+const coords = sea.features[0].geometry
 
 const data = earclip(coords, 16)
 

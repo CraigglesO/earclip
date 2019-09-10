@@ -15,6 +15,9 @@ function earclip (rings, dC = 0, extent) { // dC -> divisionCount
 
   for (const s in sections) {
     const section = sections[s]
+    // if (s === '14_10') console.log('section', section)
+    // corner case: if first ring of section is an inner ring, just add a box:
+    if (!section[0].outer) section.unshift(createBox(s))
     for (let s = 0, sl = section.length; s < sl; s++) {
       const holeIndices = []
       const data = flatten(section[s])
@@ -69,6 +72,9 @@ function divideFeature (rings) {
         // sometimes we hit an edge and its considered an intersection, so don't add it
         if (sectionCoords.length === 3 && sectionCoords[2][0] === sectionCoords[1][0] && sectionCoords[2][1] === sectionCoords[1][1]) {
         } else { // otherwise lets add the data
+          if (!sectionCoords.outer && (sectionCoords[0][0] !== sectionCoords[sectionCoords.length - 1][0] || sectionCoords[0][1] !== sectionCoords[sectionCoords.length - 1][1])) {
+            sectionCoords.outer = true
+          }
           if (ringSections[currentSection]) { // if currentSection already exists, join it.
             ringSections[currentSection].push(sectionCoords)
           } else { // completely new section data to store
@@ -94,8 +100,14 @@ function divideFeature (rings) {
 
     // now put all the ring's sections into sections
     for (const key in ringSections) {
-      if (sections[key]) sections[key].push(...ringSections[key])
-      else sections[key] = ringSections[key]
+      if (sections[key]) {
+        // store all the rings, ensuring proper ordering
+        for (let r = 0, rl = ringSections[key].length; r < rl; r++) {
+          const ring = ringSections[key][r]
+          if (ring.outer) sections[key].unshift(ring)
+          else sections[key].push(ring)
+        }
+      } else sections[key] = ringSections[key]
     }
 
     // lastly store the sectionRing
@@ -116,13 +128,6 @@ function getIntersections (p1, p2, outer, sections) {
   let p1TSection = getSsection(p1[1])
   let p2SSection = getSsection(p2[0])
   let p2TSection = getSsection(p2[1])
-  // console.log('p1', p1)
-  // console.log('p2', p2)
-  // console.log('p1SSection', p1SSection)
-  // console.log('p1TSection', p1TSection)
-  // console.log('p2SSection', p2SSection)
-  // console.log('p2TSection', p2TSection)
-  // console.log('outer', outer)
 
   let points = []
 
@@ -195,6 +200,7 @@ function getIntersections (p1, p2, outer, sections) {
 
 // for each section go from last point to first point, following edge points counter-clockwise
 function closeSections (sections) {
+  // console.log('CLOSE')
   for (const section in sections) {
     for (let s = 0; s < sections[section].length; s++) {
       const poly = sections[section][s]
@@ -213,6 +219,7 @@ function closeSections (sections) {
       }
       // move to corners counter-clockwise until we hit the beginning of one the polys
       let beginEndSameLine = findPointsAlongVector(startPoints, last, wall)
+      let failSafety = 0
       while (!beginEndSameLine.length) {
         if (wall === 0) { // left wall -> bottom-left
           last = [sectionBounds[0], sectionBounds[1]]
@@ -230,6 +237,11 @@ function closeSections (sections) {
         if (wall > 3) wall = 0
         // check if the new corner point aligns with a starter point
         beginEndSameLine = findPointsAlongVector(startPoints, last, wall)
+        // failSafety
+        failSafety++
+        if (failSafety > 6) {
+          throw new Error('Earclip: Self intersecting features are not supported.')
+        }
       }
 
       // sort by which points are closest to the endPoint and pick the first
@@ -241,8 +253,10 @@ function closeSections (sections) {
       if (endPoint.index === 0) {
         poly.push(first)
         sections[section][s] = poly
+        sections[section][s].outer = true
       } else {
         sections[section][s] = poly.concat(sections[section][endPoint.index])
+        sections[section][s].outer = true
         sections[section].splice(endPoint.index, 1)
         s--
       }
@@ -256,18 +270,27 @@ function addInnerSquares (sections, sectionPoly) {
 
   for (let s = minS; s < maxS; s++) {
     for (let t = minT; t < maxT; t++) {
-      if (!sections[`${s}_${t}`] && inside([s, t], sectionPoly)) {
-        const bounds = getSectionBounds(`${s}_${t}`)
-        sections[`${s}_${t}`] = [[
-          [bounds[0], bounds[1]],
-          [bounds[0], bounds[3]],
-          [bounds[2], bounds[3]],
-          [bounds[2], bounds[1]],
-          [bounds[0], bounds[1]]
-        ]]
+      const sectionID = `${s}_${t}`
+      if (!sections[sectionID] && inside([s, t], sectionPoly)) {
+        sections[sectionID] = [createBox(sectionID)]
       }
     }
   }
+}
+
+function createBox (section) {
+  const bounds = getSectionBounds(section)
+  const box = [
+    [bounds[0], bounds[1]],
+    [bounds[0], bounds[3]],
+    [bounds[2], bounds[3]],
+    [bounds[2], bounds[1]],
+    [bounds[0], bounds[1]]
+  ]
+
+  box.outer = true
+
+  return box
 }
 
 function bbox (poly) {

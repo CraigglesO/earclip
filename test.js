@@ -21,8 +21,6 @@ const featureCollection = {
   features: []
 }
 
-// const sea = JSON.parse(fs.readFileSync('./featureCollections/sea10m.json', 'utf8'))
-
 // const squares = [
 //   [
 //     [0, 0],
@@ -40,31 +38,35 @@ const featureCollection = {
 //   ]
 // ]
 
-const squares = [
-  [
-    [0, 0],
-    [4096, 0],
-    [4096, 4096],
-    [0, 4096],
-    [0, 0]
-  ],
-  [
-    [512, 512],
-    [512, 1536],
-    [1536, 1536],
-    [1536, 512],
-    [512, 512]
-  ],
-  [
-    [512, 2560],
-    [512, 2560 + 1024],
-    [512 + 1024, 2560 + 1024],
-    [512 + 1024, 2560],
-    [512, 2560]
-  ]
-]
+// const squares = [
+//   [
+//     [0, 0],
+//     [4096, 0],
+//     [4096, 4096],
+//     [0, 4096],
+//     [0, 0]
+//   ],
+//   [
+//     [512, 512],
+//     [512, 1536],
+//     [1536, 1536],
+//     [1536, 512],
+//     [512, 512]
+//   ],
+//   [
+//     [512, 2560],
+//     [512, 2560 + 1024],
+//     [512 + 1024, 2560 + 1024],
+//     [512 + 1024, 2560],
+//     [512, 2560]
+//   ]
+// ]
 
-const data = earclip(squares, 32)
+const sea = JSON.parse(fs.readFileSync('./featureCollections/sea.json', 'utf8'))
+
+const coords = sea.features[0].geometry
+
+const data = earclip(coords, 16)
 
 const { vertices, indices } = data
 
@@ -77,9 +79,13 @@ const { vertices, indices } = data
 // console.log('holes', holes)
 
 for (let i = 0, il = indices.length; i < il; i += 3) {
+  const sectionS = getSsection(vertices[indices[i] * 2])
+  const sectionT = getSsection(vertices[indices[i] * 2 + 1])
   const feature = {
     type: 'Feature',
-    properties: {},
+    properties: {
+      section: `${sectionS}_${sectionT}`
+    },
     geometry: {
       type: 'Polygon',
       coordinates: [[
@@ -95,3 +101,7 @@ for (let i = 0, il = indices.length; i < il; i += 3) {
 }
 
 fs.writeFileSync('./out.json', JSON.stringify(featureCollection, null, 2))
+
+function getSsection (s) {
+  return Math.floor(16 / 4096 * s + (16 / 4096))
+}

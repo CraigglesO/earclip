@@ -1,4 +1,4 @@
-const divisionCount = 7
+const divisionCount = 16
 const EXTENT = 4096
 
 function getSsection (s) {
@@ -10,6 +10,6 @@ function getSectionS (section) {
 }
 
 
-let section = getSectionS(6)
+let section = getSectionS(-4)
 console.log(section)
 console.log(getSsection(section))

@@ -414,6 +414,7 @@ function flatten (sectionPoints) { // convert Array<Point> to Array<number>
 
 exports.earclip = earclip
 exports.flatten = flatten
+exports.earcut = earcut
 
 // SAVED FOR POSTERITY
 // function getLatSection (lat) {

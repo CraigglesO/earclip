@@ -3,15 +3,13 @@ const { earcut } = require('./earcut')
 let divisionCount = 0
 let EXTENT = 4096
 
-function earclip (rings, dC = 0, extent) { // dC -> divisionCount
+function earclip (rings, dC = 0, extent, offset = 0) { // dC -> divisionCount
   divisionCount = dC
   if (extent) EXTENT = extent
 
   const vertices = []
   const indices = []
   const sections = divideFeature(rings)
-
-  let offset = 0
 
   for (const s in sections) {
     const section = sections[s]

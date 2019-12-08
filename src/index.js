@@ -66,14 +66,18 @@ function divideFeature (rings) {
         const [firstIntersectionCoord, lastIntersectionCoord] = getIntersections(ring[i - 1], ring[i], sectionCoords.outer, ringSections)
         // add the point to end of the current section
         sectionCoords.push(firstIntersectionCoord)
-        // sometimes we hit an edge and its considered an intersection, so don't add it
-        if (!sectionCoords.outer && (sectionCoords[0][0] !== sectionCoords[sectionCoords.length - 1][0] || sectionCoords[0][1] !== sectionCoords[sectionCoords.length - 1][1])) {
-          sectionCoords.outer = true
-        }
-        if (ringSections[currentSection]) { // if currentSection already exists, join it.
-          ringSections[currentSection].push(sectionCoords)
-        } else { // completely new section data to store
-          ringSections[currentSection] = [sectionCoords]
+        // sometimes we get a triangle where all 3 points are the same
+        if (sectionCoords.length === 3 && samePoint(sectionCoords[0], sectionCoords[1]) && samePoint(sectionCoords[0], sectionCoords[2])) {
+        } else {
+          // sometimes we hit an edge and its considered an intersection, so don't add it
+          if (!sectionCoords.outer && (sectionCoords[0][0] !== sectionCoords[sectionCoords.length - 1][0] || sectionCoords[0][1] !== sectionCoords[sectionCoords.length - 1][1])) {
+            sectionCoords.outer = true
+          }
+          if (ringSections[currentSection]) { // if currentSection already exists, join it.
+            ringSections[currentSection].push(sectionCoords)
+          } else { // completely new section data to store
+            ringSections[currentSection] = [sectionCoords]
+          }
         }
         // and now we start a new sectionCoords and be sure to add the intersection
         sectionCoords = [lastIntersectionCoord, ring[i]]
@@ -166,7 +170,7 @@ function getIntersections (p1, p2, outer, sections) {
   let section
   for (let i = 0, pl = points.length - 1; i < pl; i++) {
     // if the two points are the same (edge) than don't include the points
-    if (points[i][0] === points[i + 1][0] && points[i][1] === points[i + 1][1]) continue
+    if (samePoint(points[i], points[i + 1])) continue
     p1SSection = getSsection(points[i][0])
     p1TSection = getSsection(points[i][1])
     p2SSection = getSsection(points[i + 1][0])
@@ -203,7 +207,7 @@ function closeSections (sections) {
       const first = poly[0]
       let last = poly[poly.length - 1]
       // corner case, a line that already closes on itself (could be an inner ring [hole])
-      if (first[0] === last[0] && first[1] === last[1]) continue
+      if (samePoint(first, last)) continue
       const sectionBounds = getSectionBounds(section)
       // Wall: left -> 0, bottom -> 1, right -> 2, and top -> 3 (coexists with section bounds)
       let wall = getWall(last, sectionBounds)
@@ -403,6 +407,11 @@ function findPointsAlongVector (startingPoints, lastPoint, wall) {
 
     return acc
   }, [])
+}
+
+function samePoint (p1, p2) {
+  if (p1[0] === p2[0] && p1[1] === p2[1]) return true
+  else return false
 }
 
 function flatten (sectionPoints) { // convert Array<Point> to Array<number>

@@ -67,16 +67,13 @@ function divideFeature (rings) {
         // add the point to end of the current section
         sectionCoords.push(firstIntersectionCoord)
         // sometimes we hit an edge and its considered an intersection, so don't add it
-        if (sectionCoords.length === 3 && sectionCoords[2][0] === sectionCoords[1][0] && sectionCoords[2][1] === sectionCoords[1][1]) {
-        } else { // otherwise lets add the data
-          if (!sectionCoords.outer && (sectionCoords[0][0] !== sectionCoords[sectionCoords.length - 1][0] || sectionCoords[0][1] !== sectionCoords[sectionCoords.length - 1][1])) {
-            sectionCoords.outer = true
-          }
-          if (ringSections[currentSection]) { // if currentSection already exists, join it.
-            ringSections[currentSection].push(sectionCoords)
-          } else { // completely new section data to store
-            ringSections[currentSection] = [sectionCoords]
-          }
+        if (!sectionCoords.outer && (sectionCoords[0][0] !== sectionCoords[sectionCoords.length - 1][0] || sectionCoords[0][1] !== sectionCoords[sectionCoords.length - 1][1])) {
+          sectionCoords.outer = true
+        }
+        if (ringSections[currentSection]) { // if currentSection already exists, join it.
+          ringSections[currentSection].push(sectionCoords)
+        } else { // completely new section data to store
+          ringSections[currentSection] = [sectionCoords]
         }
         // and now we start a new sectionCoords and be sure to add the intersection
         sectionCoords = [lastIntersectionCoord, ring[i]]

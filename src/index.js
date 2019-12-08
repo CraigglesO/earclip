@@ -166,8 +166,10 @@ function getIntersections (p1, p2, outer, sections) {
   })
 
   // create/add the middle sections
+  let section
   for (let i = 0, pl = points.length - 1; i < pl; i++) {
-    let section
+    // if the two points are the same (edge) than don't include the points
+    if (points[i][0] === points[i + 1][0] && points[i][1] === points[i + 1][1]) continue
     p1SSection = getSsection(points[i][0])
     p1TSection = getSsection(points[i][1])
     p2SSection = getSsection(points[i + 1][0])

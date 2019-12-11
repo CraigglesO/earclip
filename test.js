@@ -62,12 +62,12 @@ const featureCollection = {
 //   ]
 // ]
 
-const sea = JSON.parse(fs.readFileSync('./featureCollections/newTest.json', 'utf8'))
+const sea = JSON.parse(fs.readFileSync('./featureCollections/canada.json', 'utf8'))
 
-const allCoords = sea.features[0].geometry.coordinates
+const allCoords = [sea.features[0].geometry.coordinates[0]]
 
 allCoords.forEach(coords => {
-  const data = earclip(coords, 8)
+  const data = earclip(coords, 16)
 
   const { vertices, indices } = data
 

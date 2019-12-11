@@ -66,17 +66,14 @@ function divideFeature (rings) {
         const [firstIntersectionCoord, lastIntersectionCoord] = getIntersections(ring[i - 1], ring[i], sectionCoords.outer, ringSections)
         // add the point to end of the current section
         sectionCoords.push(firstIntersectionCoord)
-        // sometimes we get a triangle where all 3 points are the same
-        if (!samePoints(sectionCoords)) {
-          // sometimes we hit an edge and its considered an intersection, so don't add it
-          if (!sectionCoords.outer && !samePoint(sectionCoords[0], sectionCoords[sectionCoords.length - 1])) {
-            sectionCoords.outer = true
-          }
-          if (ringSections[currentSection]) { // if currentSection already exists, join it.
-            ringSections[currentSection].push(sectionCoords)
-          } else { // completely new section data to store
-            ringSections[currentSection] = [sectionCoords]
-          }
+        // sometimes we hit an edge and its considered an intersection, so don't add it
+        if (!sectionCoords.outer && !samePoint(sectionCoords[0], sectionCoords[sectionCoords.length - 1])) {
+          sectionCoords.outer = true
+        }
+        if (ringSections[currentSection]) { // if currentSection already exists, join it.
+          ringSections[currentSection].push(sectionCoords)
+        } else { // completely new section data to store
+          ringSections[currentSection] = [sectionCoords]
         }
         // and now we start a new sectionCoords and be sure to add the intersection
         sectionCoords = [lastIntersectionCoord, ring[i]]
@@ -92,7 +89,7 @@ function divideFeature (rings) {
         ringSections[section][0] = sectionCoords.concat(ringSections[section][0])
         ringSections[section][0].outer = true // since we know for a fact the ring leaves the bounding box, it must be true
       } else { // small enough that this is either the only data or circular data
-        if (!samePoints(sectionCoords)) ringSections[section] = [sectionCoords]
+        if (sectionCoords.length >= 2 && !samePoints(sectionCoords)) ringSections[section] = [sectionCoords]
       }
     }
 
@@ -203,6 +200,12 @@ function closeSections (sections) {
   for (const section in sections) {
     for (let s = 0; s < sections[section].length; s++) {
       const poly = sections[section][s]
+      // check it can be a poly
+      if (poly.length <= 5 && samePoints(poly)) {
+        sections[section].splice(s, 1)
+        if (!sections[section].length) delete sections[section]
+        break
+      }
       const first = poly[0]
       let last = poly[poly.length - 1]
       // corner case, a line that already closes on itself (could be an inner ring [hole])

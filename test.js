@@ -67,7 +67,7 @@ const sea = JSON.parse(fs.readFileSync('./featureCollections/canada.json', 'utf8
 const allCoords = [sea.features[0].geometry.coordinates[0]]
 
 allCoords.forEach(coords => {
-  const data = earclip(coords, 16)
+  const data = earclip(coords, 8)
 
   const { vertices, indices } = data
 

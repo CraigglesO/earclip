@@ -92,6 +92,11 @@ function divideFeature (rings) {
         sectionCoords.pop() // remove the extra point (polys start and end on the same point)
         ringSections[section][0] = sectionCoords.concat(ringSections[section][0])
         ringSections[section][0].outer = true // since we know for a fact the ring leaves the bounding box, it must be true
+        // corner case: start and end, but should not exist
+        if (ringSections[section][0].length <= 5 && samePoints(ringSections[section][0])) {
+          ringSections[section].shift()
+          if (!ringSections[section].length) delete ringSections[section]
+        }
       } else { // small enough that this is either the only data or circular data
         if (sectionCoords.length >= 2 && !samePoints(sectionCoords)) ringSections[section] = [sectionCoords]
       }
@@ -207,6 +212,8 @@ function closeSections (sections) {
       const first = poly[0]
       let last = poly[poly.length - 1]
       // corner case, a line that already closes on itself (could be an inner ring [hole])
+      // assuming that it's just just a bunch of points on itself due to starting on said point
+      // if (samePoint(first, last) && !(poly.length <= 5 && samePoints(poly))) continue
       if (samePoint(first, last)) continue
       const sectionBounds = getSectionBounds(section)
       // Wall: left -> 0, bottom -> 1, right -> 2, and top -> 3 (coexists with section bounds)

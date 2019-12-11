@@ -67,7 +67,7 @@ function divideFeature (rings) {
         // add the point to end of the current section
         sectionCoords.push(firstIntersectionCoord)
         // sometimes we get a triangle where all 3 points are the same
-        if (sectionCoords.length >= 2 && !samePoints(sectionCoords)) {
+        if (!samePoints(sectionCoords)) {
           // sometimes we hit an edge and its considered an intersection, so don't add it
           if (!sectionCoords.outer && !samePoint(sectionCoords[0], sectionCoords[sectionCoords.length - 1])) {
             sectionCoords.outer = true
@@ -92,7 +92,7 @@ function divideFeature (rings) {
         ringSections[section][0] = sectionCoords.concat(ringSections[section][0])
         ringSections[section][0].outer = true // since we know for a fact the ring leaves the bounding box, it must be true
       } else { // small enough that this is either the only data or circular data
-        if (sectionCoords.length >= 2 && !samePoints(sectionCoords)) ringSections[section] = [sectionCoords]
+        if (!samePoints(sectionCoords)) ringSections[section] = [sectionCoords]
       }
     }
 

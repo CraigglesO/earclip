@@ -67,10 +67,9 @@ function divideFeature (rings) {
         // add the point to end of the current section
         sectionCoords.push(firstIntersectionCoord)
         // sometimes we get a triangle where all 3 points are the same
-        if (sectionCoords.length === 3 && samePoint(sectionCoords[0], sectionCoords[1]) && samePoint(sectionCoords[0], sectionCoords[2])) {
-        } else {
+        if (sectionCoords.length >= 2 && !samePoints(sectionCoords)) {
           // sometimes we hit an edge and its considered an intersection, so don't add it
-          if (!sectionCoords.outer && (sectionCoords[0][0] !== sectionCoords[sectionCoords.length - 1][0] || sectionCoords[0][1] !== sectionCoords[sectionCoords.length - 1][1])) {
+          if (!sectionCoords.outer && !samePoint(sectionCoords[0], sectionCoords[sectionCoords.length - 1])) {
             sectionCoords.outer = true
           }
           if (ringSections[currentSection]) { // if currentSection already exists, join it.
@@ -92,8 +91,8 @@ function divideFeature (rings) {
         sectionCoords.pop() // remove the extra point (polys start and end on the same point)
         ringSections[section][0] = sectionCoords.concat(ringSections[section][0])
         ringSections[section][0].outer = true // since we know for a fact the ring leaves the bounding box, it must be true
-      } else { // small enough that this is the only data
-        ringSections[section] = [sectionCoords]
+      } else { // small enough that this is either the only data or circular data
+        if (sectionCoords.length >= 2 && !samePoints(sectionCoords)) ringSections[section] = [sectionCoords]
       }
     }
 
@@ -407,6 +406,14 @@ function findPointsAlongVector (startingPoints, lastPoint, wall) {
 
     return acc
   }, [])
+}
+
+function samePoints (linestring) {
+  const firstPoint = linestring[0]
+  for (let i = 1, ll = linestring.length; i < ll; i++) {
+    if (!samePoint(firstPoint, linestring[i])) return false
+  }
+  return true
 }
 
 function samePoint (p1, p2) {

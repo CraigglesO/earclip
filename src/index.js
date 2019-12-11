@@ -44,15 +44,15 @@ function divideFeature (rings) {
     const ring = rings[r]
     const sectionRing = []
     const ringSections = {}
+    let currentSection, section, sectionCoords
 
     const currentSSection = getSsection(ring[0][0])
     const currentTSection = getSsection(ring[0][1])
-    let currentSection = `${currentSSection}_${currentTSection}`
-    let sectionCoords = [ring[0]]
+    const beginSection = currentSection = `${currentSSection}_${currentTSection}`
+    sectionCoords = [ring[0]]
     sectionRing.push([currentSSection, currentTSection])
     if (r === 0) sectionCoords.outer = true
     else sectionCoords.outer = false
-    let section
 
     for (let i = 1, cl = ring.length; i < cl; i++) {
       const sSection = getSsection(ring[i][0])
@@ -66,14 +66,18 @@ function divideFeature (rings) {
         const [firstIntersectionCoord, lastIntersectionCoord] = getIntersections(ring[i - 1], ring[i], sectionCoords.outer, ringSections)
         // add the point to end of the current section
         sectionCoords.push(firstIntersectionCoord)
-        // sometimes we hit an edge and its considered an intersection, so don't add it
-        if (!sectionCoords.outer && !samePoint(sectionCoords[0], sectionCoords[sectionCoords.length - 1])) {
-          sectionCoords.outer = true
-        }
-        if (ringSections[currentSection]) { // if currentSection already exists, join it.
-          ringSections[currentSection].push(sectionCoords)
-        } else { // completely new section data to store
-          ringSections[currentSection] = [sectionCoords]
+        // sometimes we have "dead" data, that can get in teh way of eventually addInnerSquares
+        if (beginSection !== currentSection && sectionCoords.length <= 5 && samePoints(sectionCoords)) {
+        } else {
+          // sometimes we hit an edge and its considered an intersection, so don't add it
+          if (!sectionCoords.outer && !samePoint(sectionCoords[0], sectionCoords[sectionCoords.length - 1])) {
+            sectionCoords.outer = true
+          }
+          if (ringSections[currentSection]) { // if currentSection already exists, join it.
+            ringSections[currentSection].push(sectionCoords)
+          } else { // completely new section data to store
+            ringSections[currentSection] = [sectionCoords]
+          }
         }
         // and now we start a new sectionCoords and be sure to add the intersection
         sectionCoords = [lastIntersectionCoord, ring[i]]
@@ -200,12 +204,6 @@ function closeSections (sections) {
   for (const section in sections) {
     for (let s = 0; s < sections[section].length; s++) {
       const poly = sections[section][s]
-      // check it can be a poly
-      if (poly.length <= 5 && samePoints(poly)) {
-        sections[section].splice(s, 1)
-        if (!sections[section].length) delete sections[section]
-        break
-      }
       const first = poly[0]
       let last = poly[poly.length - 1]
       // corner case, a line that already closes on itself (could be an inner ring [hole])

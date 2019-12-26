@@ -1,4 +1,4 @@
-function earcut (data, holeIndices, dim, offset = 0) {
+function earcut (data, holeIndices, dim) {
   const hasHoles = holeIndices && holeIndices.length
   const outerLen = hasHoles ? holeIndices[0] * dim : data.length
   let outerNode = linkedList(data, 0, outerLen, dim, true)
@@ -29,7 +29,7 @@ function earcut (data, holeIndices, dim, offset = 0) {
     invSize = invSize !== 0 ? 1 / invSize : 0
   }
 
-  earcutLinked(outerNode, triangles, dim, minX, minY, invSize, null, offset)
+  earcutLinked(outerNode, triangles, dim, minX, minY, invSize, null)
 
   return triangles
 }
@@ -77,7 +77,7 @@ function filterPoints (start, end) {
 }
 
 // main ear slicing loop which triangulates a polygon (given as a linked list)
-function earcutLinked (ear, triangles, dim, minX, minY, invSize, pass, offset) {
+function earcutLinked (ear, triangles, dim, minX, minY, invSize, pass) {
   if (!ear) return
   // interlink polygon nodes in z-order
   if (!pass && invSize) indexCurve(ear, minX, minY, invSize)
@@ -93,9 +93,9 @@ function earcutLinked (ear, triangles, dim, minX, minY, invSize, pass, offset) {
 
     if (invSize ? isEarHashed(ear, minX, minY, invSize) : isEar(ear)) {
       // cut off the triangle
-      triangles.push(prev.i / dim + offset)
-      triangles.push(ear.i / dim + offset)
-      triangles.push(next.i / dim + offset)
+      triangles.push(prev.i / dim)
+      triangles.push(ear.i / dim)
+      triangles.push(next.i / dim)
 
       removeNode(ear)
 
@@ -112,16 +112,16 @@ function earcutLinked (ear, triangles, dim, minX, minY, invSize, pass, offset) {
     if (ear === stop) {
       // try filtering points and slicing again
       if (!pass) {
-        earcutLinked(filterPoints(ear), triangles, dim, minX, minY, invSize, 1, offset)
+        earcutLinked(filterPoints(ear), triangles, dim, minX, minY, invSize, 1)
 
         // if this didn't work, try curing all small self-intersections locally
       } else if (pass === 1) {
-        ear = cureLocalIntersections(ear, triangles, dim, offset)
-        earcutLinked(ear, triangles, dim, minX, minY, invSize, 2, offset)
+        ear = cureLocalIntersections(ear, triangles, dim)
+        earcutLinked(ear, triangles, dim, minX, minY, invSize, 2)
 
         // as a last resort, try splitting the remaining polygon into two
       } else if (pass === 2) {
-        splitEarcut(ear, triangles, dim, minX, minY, invSize, offset)
+        splitEarcut(ear, triangles, dim, minX, minY, invSize)
       }
 
       break
@@ -202,16 +202,16 @@ function isEarHashed (ear, minX, minY, invSize) {
 }
 
 // go through all polygon nodes and cure small local self-intersections
-function cureLocalIntersections (start, triangles, dim, offset) {
+function cureLocalIntersections (start, triangles, dim) {
   let p = start
   do {
     const a = p.prev
     const b = p.next.next
 
     if (!equals(a, b) && intersects(a, p, p.next, b) && locallyInside(a, b) && locallyInside(b, a)) {
-      triangles.push(a.i / dim + offset)
-      triangles.push(p.i / dim + offset)
-      triangles.push(b.i / dim + offset)
+      triangles.push(a.i / dim)
+      triangles.push(p.i / dim)
+      triangles.push(b.i / dim)
 
       // remove two nodes involved
       removeNode(p)
@@ -226,7 +226,7 @@ function cureLocalIntersections (start, triangles, dim, offset) {
 }
 
 // try splitting polygon into two and triangulate them independently
-function splitEarcut (start, triangles, dim, minX, minY, invSize, offset) {
+function splitEarcut (start, triangles, dim, minX, minY, invSize) {
   // look for a valid diagonal that divides the polygon into two
   let a = start
   do {
@@ -241,8 +241,8 @@ function splitEarcut (start, triangles, dim, minX, minY, invSize, offset) {
         c = filterPoints(c, c.next)
 
         // run earcut on each half
-        earcutLinked(a, triangles, dim, minX, minY, invSize, null, offset)
-        earcutLinked(c, triangles, dim, minX, minY, invSize, null, offset)
+        earcutLinked(a, triangles, dim, minX, minY, invSize, null)
+        earcutLinked(c, triangles, dim, minX, minY, invSize, null)
         return
       }
       b = b.next

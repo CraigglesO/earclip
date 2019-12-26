@@ -3,7 +3,7 @@ const { earcut } = require('./earcut')
 function earclip (polygon, maxLength = Infinity, offset = 0) {
   // Use earcut to build standard triangle set
   const { vertices, holeIndices, dim } = flatten(polygon) // dim => dimensions
-  const indices = earcut(vertices, holeIndices, dim, offset)
+  const indices = earcut(vertices, holeIndices, dim)
 
   // for each triangle, ensure the length of all three sides are no greater than maxLength
   if (maxLength !== Infinity) {
@@ -42,7 +42,7 @@ function earclip (polygon, maxLength = Infinity, offset = 0) {
       }
     }
   }
-  return { vertices, indices }
+  return { vertices, indices: indices.map(index => index + offset) }
 }
 
 function length (p1, p2, dim) {

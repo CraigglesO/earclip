@@ -64,7 +64,8 @@ const featureCollection = {
 
 const input = JSON.parse(fs.readFileSync('./featureCollections/holesTest.json', 'utf8'))
 
-const allCoords = [input.features[0].geometry.coordinates[0]]
+// const allCoords = [input.features[0].geometry.coordinates[8]]
+const allCoords = input.features[0].geometry.coordinates
 // const allCoords = [[[
 //   [0, 0],
 //   [4096, 0],
@@ -73,33 +74,32 @@ const allCoords = [input.features[0].geometry.coordinates[0]]
 //   [0, 0]
 // ]]]
 
+const vertices = []
+const indices = []
+
 allCoords.forEach(coords => {
-  const data = earclip(coords, 4096 / 2)
-
-  const { vertices, indices } = data
-
-  for (let i = 0, il = indices.length; i < il; i += 3) {
-    // const sectionS = getSsection(vertices[indices[i] * 2])
-    // const sectionT = getSsection(vertices[indices[i] * 2 + 1])
-    const feature = {
-      type: 'Feature',
-      properties: {
-        // section: `${sectionS}_${sectionT}`
-      },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [[
-          [vertices[indices[i] * 2] / 4096, vertices[indices[i] * 2 + 1] / 4096],
-          [vertices[indices[i + 1] * 2] / 4096, vertices[indices[i + 1] * 2 + 1] / 4096],
-          [vertices[indices[i + 2] * 2] / 4096, vertices[indices[i + 2] * 2 + 1] / 4096],
-          [vertices[indices[i] * 2] / 4096, vertices[indices[i] * 2 + 1] / 4096]
-        ]]
-      }
-    }
-
-    featureCollection.features.push(feature)
-  }
+  const data = earclip(coords, 4096 / 16, vertices.length / 2)
+  vertices.push(...data.vertices)
+  indices.push(...data.indices)
 })
+
+for (let i = 0, il = indices.length; i < il; i += 3) {
+  const feature = {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [vertices[indices[i] * 2] / 4096, vertices[indices[i] * 2 + 1] / 4096],
+        [vertices[indices[i + 1] * 2] / 4096, vertices[indices[i + 1] * 2 + 1] / 4096],
+        [vertices[indices[i + 2] * 2] / 4096, vertices[indices[i + 2] * 2 + 1] / 4096],
+        [vertices[indices[i] * 2] / 4096, vertices[indices[i] * 2 + 1] / 4096]
+      ]]
+    }
+  }
+
+  featureCollection.features.push(feature)
+}
 
 fs.writeFileSync('./out.json', JSON.stringify(featureCollection, null, 2))
 

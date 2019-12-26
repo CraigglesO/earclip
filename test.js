@@ -14,7 +14,7 @@
 
 const fs = require('fs')
 const { earclip } = require('./lib')
-const earcut = require('earcut')
+// const earcut = require('earcut')
 
 const featureCollection = {
   type: 'FeatureCollection',
@@ -62,22 +62,29 @@ const featureCollection = {
 //   ]
 // ]
 
-const sea = JSON.parse(fs.readFileSync('./featureCollections/canada.json', 'utf8'))
+const input = JSON.parse(fs.readFileSync('./featureCollections/holesTest.json', 'utf8'))
 
-const allCoords = [sea.features[0].geometry.coordinates[0]]
+const allCoords = [input.features[0].geometry.coordinates[0]]
+// const allCoords = [[[
+//   [0, 0],
+//   [4096, 0],
+//   [4096, 4096],
+//   [0, 4096],
+//   [0, 0]
+// ]]]
 
 allCoords.forEach(coords => {
-  const data = earclip(coords, 8)
+  const data = earclip(coords, 4096 / 2)
 
   const { vertices, indices } = data
 
   for (let i = 0, il = indices.length; i < il; i += 3) {
-    const sectionS = getSsection(vertices[indices[i] * 2])
-    const sectionT = getSsection(vertices[indices[i] * 2 + 1])
+    // const sectionS = getSsection(vertices[indices[i] * 2])
+    // const sectionT = getSsection(vertices[indices[i] * 2 + 1])
     const feature = {
       type: 'Feature',
       properties: {
-        section: `${sectionS}_${sectionT}`
+        // section: `${sectionS}_${sectionT}`
       },
       geometry: {
         type: 'Polygon',
@@ -96,6 +103,6 @@ allCoords.forEach(coords => {
 
 fs.writeFileSync('./out.json', JSON.stringify(featureCollection, null, 2))
 
-function getSsection (s) {
-  return Math.floor(16 / 4096 * s + (16 / 4096))
-}
+// function getSsection (s) {
+//   return Math.floor(16 / 4096 * s + (16 / 4096))
+// }

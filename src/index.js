@@ -7,37 +7,95 @@ function earclip (polygon, maxLength = Infinity, offset = 0) {
 
   // for each triangle, ensure the length of all three sides are no greater than maxLength
   if (maxLength !== Infinity) {
-    let A, B, C
+    let A, B, C, BC, AC, p1, p2, p3, len, zig, vec1, vec2, ccw
+    let len1 = 0
+    let len2 = 0
     for (let i = 0; i < indices.length; i += 3) {
+      // if (i > 4000) break
+      // console.log('i', i)
       // run through each triangle set, everytime the length of even one side is
       // larger than maxLength, we split it in half using the largest side of greater
       // than max length against the opposite point
       // step 1: grab a triangle set
-      A = vertices.slice(indices[i] * dim, (indices[i] * dim) + dim)
-      B = vertices.slice(indices[i + 1] * dim, (indices[i + 1] * dim) + dim)
-      C = vertices.slice(indices[i + 2] * dim, (indices[i + 2] * dim) + dim)
-      // check if any of the lines are longer than allowable length
-      if (Math.max(length(A, B, dim), length(B, C, dim), length(A, C, dim)) > maxLength) {
-        // get midpoints for each line
-        const [F, E, D] = midpoint(A, B, C, dim)
-        // th result will create FOUR new triangles, but only require creating 3 new index sets and 3 new vertices
-        // add the triangles middle point
-        vertices.push(...F, ...E, ...D)
-        // get vertex index of the new point
-        const FIndex = vertices.length / dim - 3
-        const EIndex = vertices.length / dim - 2
-        const DIndex = vertices.length / dim - 1
-        // store A-F-D
-        indices.push(indices[i], FIndex, DIndex)
-        // store F-B-E
-        indices.push(FIndex, indices[i + 1], EIndex)
-        // store E-C-D
-        indices.push(EIndex, indices[i + 2], DIndex)
-        // finally edit current triangle to the middle "inner" triangle to F-E-D
-        indices[i] = FIndex
-        indices[i + 1] = EIndex
-        indices[i + 2] = DIndex
-        // back track to make sure the new triangle created is not also too large
+      A = indices[i]
+      B = indices[i + 1]
+      C = indices[i + 2]
+      // step 2: Get largest and second largest line
+      // set AB to start
+      len1 = length(vertices, A, B, dim)
+      p1 = C
+      // Place BC
+      BC = length(vertices, B, C, dim)
+      if (BC > len1) {
+        len2 = len1
+        len1 = BC
+        p2 = p1
+        p1 = A
+      } else {
+        len2 = BC
+        p2 = A
+      }
+      // Place AC
+      AC = length(vertices, A, C, dim)
+      if (AC > len1) {
+        len2 = len1
+        len1 = AC
+        p3 = p2
+        p2 = p1
+        p1 = B
+      } else if (AC > len2) {
+        len2 = AC
+        p3 = p2
+        p2 = B
+      } else {
+        p3 = B
+      }
+      // Step 3: check if the largest line is longer than allowable length (maxLength)
+      // if so, we shrink the geometry.
+      if (len1 > maxLength + 0.01) {
+        // prep our zig-zag, first line, and orientation of said line; if linear orientation, we move on
+        zig = true
+        len = len1
+        ccw = orientation(vertices, p1, p2, p3, dim)
+        if (ccw === 0) continue // linear geometry, ignore
+        else if (ccw === 1) ccw = false
+        else ccw = true
+        // find the vectors for each line for quick computations
+        vec1 = getVector(vertices, p1, p3, dim)
+        vec2 = getVector(vertices, p2, p3, dim)
+        // Presented with a triange that needs to be reduced in area, use a zig-zag pattern
+        // starting at the opposite point of the longest line (max) and second point
+        // the second longest (secondMax), we work inward creating new vertices maxLength distance
+        // from each starting point (p1 & p2)
+        while (len > maxLength) {
+          // find and store the point maxLength distance from p1 using vec
+          if (zig) { // zig
+            vertices.push(...pointOnLine(vertices, p2, vec2, dim, maxLength))
+            len1 -= maxLength
+            len = len2
+          } else { // zag
+            vertices.push(...pointOnLine(vertices, p2, vec1, dim, maxLength))
+            len2 -= maxLength
+            len = len1
+          }
+          // get new vertex index
+          const newVertexIndex = vertices.length / dim - 1
+          // store
+          if (ccw) indices.push(p1, p2, newVertexIndex)
+          else indices.push(p1, newVertexIndex, p2)
+          // move indices foward
+          p2 = p1
+          p1 = newVertexIndex // this is not the opposite of the longest line
+          // if we have already zigged, than we zag; use our current state to reduce length
+          zig = !zig
+          // update orientation
+          ccw = !ccw
+        }
+        // now we store the final triangle that links us back to the most acute angle (p3)
+        indices[i] = p1
+        indices[i + 1] = p2
+        indices[i + 2] = p3
+        // no matter what decrement to where we started incase all 3 sides are greater than maxLength
         i -= 3
       }
     }
@@ -45,21 +103,37 @@ function earclip (polygon, maxLength = Infinity, offset = 0) {
   return { vertices, indices: indices.map(index => index + offset) }
 }
 
-function length (p1, p2, dim) {
-  let acc = 0
-  for (let i = 0; i < dim; i++) acc += Math.pow(p2[i] - p1[i], 2)
-  return Math.sqrt(acc)
+// https://www.geeksforgeeks.org/orientation-3-ordered-points/
+function orientation (vertices, p1, p2, p3, dim) {
+  let val
+  if (dim === 2) {
+    val = (vertices[p2 * 2 + 1] - vertices[p1 * 2 + 1]) * (vertices[p3 * 2] - vertices[p2 * 2]) -
+      (vertices[p2 * 2] - vertices[p1 * 2]) * (vertices[p3 * 2 + 1] - vertices[p2 * 2 + 1])
+  } else {}
+  if (val === 0) return 0
+  return (val > 0) ? 1 : 2
 }
 
-function midpoint (A, B, C, dim) {
-  const F = []
-  const E = []
-  const D = []
-  // get the midpoints of each line from A->B, A->C, B->C
-  for (let i = 0; i < dim; i++) F.push((A[i] + B[i]) / 2)
-  for (let i = 0; i < dim; i++) E.push((B[i] + C[i]) / 2)
-  for (let i = 0; i < dim; i++) D.push((C[i] + A[i]) / 2)
-  return [F, E, D]
+function getVector (vertices, p1, p2, dim) {
+  const res = []
+  const len = length(vertices, p1, p2, dim)
+  // create slope
+  for (let i = 0; i < dim; i++) res.push(vertices[p2 * dim + i] - vertices[p1 * dim + i])
+  // divide each by length
+  for (let i = 0; i < dim; i++) res[i] /= len
+  return res
+}
+
+function pointOnLine (vertices, index, vec, dim, maxLength) {
+  const res = []
+  for (let i = 0; i < dim; i++) res.push(vertices[index * dim + i] + vec[i] * maxLength)
+  return res
+}
+
+function length (vertices, p1, p2, dim) {
+  let acc = 0
+  for (let i = 0; i < dim; i++) acc += Math.pow(vertices[p2 * dim + i] - vertices[p1 * dim + i], 2)
+  return Math.sqrt(acc)
 }
 
 function flatten (data) {

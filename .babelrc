@@ -1,6 +1,6 @@
 {
-  "compact": true,
-  "minified": true,
+  "compact": false,
+  "minified": false,
   "sourceMap": true,
   "comments": false,
   "presets": [],

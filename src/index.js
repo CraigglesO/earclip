@@ -11,8 +11,6 @@ function earclip (polygon, maxLength = Infinity, offset = 0) {
     let len1 = 0
     let len2 = 0
     for (let i = 0; i < indices.length; i += 3) {
-      // if (i > 4000) break
-      // console.log('i', i)
       // run through each triangle set, everytime the length of even one side is
       // larger than maxLength, we split it in half using the largest side of greater
       // than max length against the opposite point
@@ -92,9 +90,16 @@ function earclip (polygon, maxLength = Infinity, offset = 0) {
           ccw = !ccw
         }
         // now we store the final triangle that links us back to the most acute angle (p3)
-        indices[i] = p1
-        indices[i + 1] = p2
-        indices[i + 2] = p3
+        ccw = orientation(vertices, p1, p2, p3, dim)
+        if (ccw === 2) {
+          indices[i] = p1
+          indices[i + 1] = p2
+          indices[i + 2] = p3
+        } else {
+          indices[i] = p1
+          indices[i + 1] = p3
+          indices[i + 2] = p2
+        }
         // no matter what decrement to where we started incase all 3 sides are greater than maxLength
         i -= 3
       }

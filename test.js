@@ -65,7 +65,8 @@ const featureCollection = {
 const input = JSON.parse(fs.readFileSync('./featureCollections/holesTest.json', 'utf8'))
 
 // const allCoords = [input.features[0].geometry.coordinates[8]]
-const allCoords = input.features[0].geometry.coordinates
+let allCoords = input.features[0].geometry.coordinates
+allCoords = [allCoords[0]]
 // const allCoords = [[[
 //   [0, 0],
 //   [4096, 0],
@@ -73,15 +74,23 @@ const allCoords = input.features[0].geometry.coordinates
 //   [0, 4096],
 //   [0, 0]
 // ]]]
+// const allCoords = [[[
+//   [2048, 2048],
+//   [1024, 3072],
+//   [1024, 1024],
+//   [2048, 2048]
+// ]]]
 
 const vertices = []
 const indices = []
 
+console.time('test')
 allCoords.forEach(coords => {
   const data = earclip(coords, 4096 / 16, vertices.length / 2)
   vertices.push(...data.vertices)
   indices.push(...data.indices)
 })
+console.timeEnd('test')
 
 for (let i = 0, il = indices.length; i < il; i += 3) {
   const feature = {

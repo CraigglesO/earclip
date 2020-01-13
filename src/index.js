@@ -1,144 +1,203 @@
 const { earcut } = require('./earcut')
+// let trigger = 0
 
-function earclip (polygon, maxLength = Infinity, offset = 0) {
+function earclip (polygon, modulo = Infinity, offset = 0) {
+  if (!modulo) modulo = Infinity
   // Use earcut to build standard triangle set
   const { vertices, holeIndices, dim } = flatten(polygon) // dim => dimensions
   const indices = earcut(vertices, holeIndices, dim)
 
-  // for each triangle, ensure the length of all three sides are no greater than maxLength
-  if (maxLength !== Infinity) {
-    let A, B, C, BC, AC, p1, p2, p3, len, zig, vec1, vec2, ccw
-    let len1 = 0
-    let len2 = 0
-    for (let i = 0; i < indices.length; i += 3) {
-      // run through each triangle set, everytime the length of even one side is
-      // larger than maxLength, we split it in half using the largest side of greater
-      // than max length against the opposite point
-      // step 1: grab a triangle set
-      A = indices[i]
-      B = indices[i + 1]
-      C = indices[i + 2]
-      // step 2: Get largest and second largest line
-      // set AB to start
-      len1 = length(vertices, A, B, dim)
-      p1 = C
-      // Place BC
-      BC = length(vertices, B, C, dim)
-      if (BC > len1) {
-        len2 = len1
-        len1 = BC
-        p2 = p1
-        p1 = A
-      } else {
-        len2 = BC
-        p2 = A
-      }
-      // Place AC
-      AC = length(vertices, A, C, dim)
-      if (AC > len1) {
-        len2 = len1
-        len1 = AC
-        p3 = p2
-        p2 = p1
-        p1 = B
-      } else if (AC > len2) {
-        len2 = AC
-        p3 = p2
-        p2 = B
-      } else {
-        p3 = B
-      }
-      // Step 3: check if the largest line is longer than allowable length (maxLength)
-      // if so, we shrink the geometry.
-      if (len1 > maxLength + 0.01) {
-        // prep our zig-zag, first line, and orientation of said line; if linear orientation, we move on
-        zig = true
-        len = len1
-        ccw = orientation(vertices, p1, p2, p3, dim)
-        if (ccw === 0) continue // linear geometry, ignore
-        else if (ccw === 1) ccw = false
-        else ccw = true
-        // find the vectors for each line for quick computations
-        vec1 = getVector(vertices, p1, p3, dim)
-        vec2 = getVector(vertices, p2, p3, dim)
-        // Presented with a triange that needs to be reduced in area, use a zig-zag pattern
-        // starting at the opposite point of the longest line (max) and second point
-        // the second longest (secondMax), we work inward creating new vertices maxLength distance
-        // from each starting point (p1 & p2)
-        while (len > maxLength) {
-          // find and store the point maxLength distance from p1 using vec
-          if (zig) { // zig
-            vertices.push(...pointOnLine(vertices, p2, vec2, dim, maxLength))
-            len1 -= maxLength
-            len = len2
-          } else { // zag
-            vertices.push(...pointOnLine(vertices, p2, vec1, dim, maxLength))
-            len2 -= maxLength
-            len = len1
-          }
-          // get new vertex index
-          const newVertexIndex = vertices.length / dim - 1
-          // store
-          if (ccw) indices.push(p1, p2, newVertexIndex)
-          else indices.push(p1, newVertexIndex, p2)
-          // move indices foward
-          p2 = p1
-          p1 = newVertexIndex // this is not the opposite of the longest line
-          // if we have already zigged, than we zag; use our current state to reduce length
-          zig = !zig
-          // update orientation
-          ccw = !ccw
+  // for each triangle, ensure each triangle line does not pass through iterations of the modulo for x, y, and z
+  if (modulo !== Infinity) {
+    let A, B, C
+    for (let axis = 0; axis < dim; axis++) {
+      for (let i = 0; i < indices.length; i += 3) {
+        // get indexes of each vertex
+        A = indices[i]
+        B = indices[i + 1]
+        C = indices[i + 2]
+        // console.log('ABC', A, B, C)
+        const triangle = splitIfLarge(A, B, C, vertices, indices, dim, axis, modulo)
+        if (triangle) {
+          indices[i] = triangle[0]
+          indices[i + 1] = triangle[1]
+          indices[i + 2] = triangle[2]
+          i -= 3
+          // trigger++
+          // if (trigger > 1) break
         }
-        // now we store the final triangle that links us back to the most acute angle (p3)
-        ccw = orientation(vertices, p1, p2, p3, dim)
-        if (ccw === 2) {
-          indices[i] = p1
-          indices[i + 1] = p2
-          indices[i + 2] = p3
-        } else {
-          indices[i] = p1
-          indices[i + 1] = p3
-          indices[i + 2] = p2
-        }
-        // no matter what decrement to where we started incase all 3 sides are greater than maxLength
-        i -= 3
       }
+      // if (trigger > 1) break
     }
   }
   return { vertices, indices: indices.map(index => index + offset) }
 }
 
-// https://www.geeksforgeeks.org/orientation-3-ordered-points/
-function orientation (vertices, p1, p2, p3, dim) {
-  let val
-  if (dim === 2) {
-    val = (vertices[p2 * 2 + 1] - vertices[p1 * 2 + 1]) * (vertices[p3 * 2] - vertices[p2 * 2]) -
-      (vertices[p2 * 2] - vertices[p1 * 2]) * (vertices[p3 * 2 + 1] - vertices[p2 * 2 + 1])
-  } else {}
-  if (val === 0) return 0
-  return (val > 0) ? 1 : 2
+// given vertices, and an axis of said vertices:
+// find a number "x" that is x % modulo === 0 and between v1 and v2
+function splitIfLarge (i1, i2, i3, vertices, indices, dim, axis, modulo) {
+  // console.log('axis', axis)
+  const v1 = vertices[i1 * dim + axis]
+  const v2 = vertices[i2 * dim + axis]
+  const v3 = vertices[i3 * dim + axis]
+  // console.log('v1', v1)
+  // console.log('v2', v2)
+  // console.log('v3', v3)
+
+  // console.log('1')
+  // 1 is corner
+  if (v1 < v2 && v1 < v3) {
+    const modPoint = v1 + (modulo - v1 % modulo)
+    if (modPoint <= v2 && modPoint <= v3 && (v2 !== modPoint || v2 !== modPoint)) {
+      // console.log('HERE1', modPoint, v1)
+      return splitRight(modPoint, i1, i2, i3, v1, v2, v3, vertices, indices, dim, axis, modulo)
+    }
+  } else if (v1 > v2 && v1 > v3) {
+    let mod = (v1 % modulo)
+    if (!mod) mod = modulo
+    const modPoint = v1 - mod
+    if (modPoint >= v2 && modPoint >= v3 && (v2 !== modPoint || v2 !== modPoint)) {
+      return splitLeft(modPoint, i1, i2, i3, v1, v2, v3, vertices, indices, dim, axis, modulo)
+    }
+  }
+  // console.log('2')
+  // 2 is corner
+  if (v2 < v1 && v2 < v3) {
+    const modPoint = v2 + (modulo - v2 % modulo)
+    if (modPoint <= v3 && modPoint <= v1 && (v1 !== modPoint || v3 !== modPoint)) {
+      // console.log('HERE2', modulo, modPoint, v2)
+      return splitRight(modPoint, i2, i3, i1, v2, v3, v1, vertices, indices, dim, axis, modulo)
+    }
+  } else if (v2 > v1 && v2 > v3) {
+    let mod = (v2 % modulo)
+    if (!mod) mod = modulo
+    const modPoint = v2 - mod
+    if (modPoint >= v3 && modPoint >= v1 && (v1 !== modPoint || v3 !== modPoint)) {
+      return splitLeft(modPoint, i2, i3, i1, v2, v3, v1, vertices, indices, dim, axis, modulo)
+    }
+  }
+  // console.log('3')
+  // 3 is corner
+  if (v3 < v1 && v3 < v2) {
+    const modPoint = v3 + (modulo - v3 % modulo)
+    if (modPoint <= v1 && modPoint <= v2 && (v1 !== modPoint || v2 !== modPoint)) {
+      // console.log('HERE3', modPoint, v3)
+      return splitRight(modPoint, i3, i1, i2, v3, v1, v2, vertices, indices, dim, axis, modulo)
+    }
+  } else if (v3 > v1 && v3 > v2) {
+    let mod = (v3 % modulo)
+    if (!mod) mod = modulo
+    const modPoint = v3 - mod
+    if (modPoint >= v1 && modPoint >= v2 && (v1 !== modPoint || v2 !== modPoint)) {
+      return splitLeft(modPoint, i3, i1, i2, v3, v1, v2, vertices, indices, dim, axis, modulo)
+    }
+  }
 }
 
-function getVector (vertices, p1, p2, dim) {
-  const res = []
-  const len = length(vertices, p1, p2, dim)
-  // create slope
-  for (let i = 0; i < dim; i++) res.push(vertices[p2 * dim + i] - vertices[p1 * dim + i])
-  // divide each by length
-  for (let i = 0; i < dim; i++) res[i] /= len
-  return res
+function createVertex (splitPoint, i1, i2, v1, v2, vertices, dim, axis) {
+  const index = vertices.length / dim
+  const travelDivisor = (v2 - v1) / (splitPoint - v1)
+  let va1, va2
+  for (let i = 0; i < dim; i++) {
+    va1 = vertices[i1 * dim + i]
+    va2 = vertices[i2 * dim + i]
+    if (i !== axis) vertices.push(va1 + ((va2 - va1) / travelDivisor))
+    else vertices.push(splitPoint)
+  }
+  return index
 }
 
-function pointOnLine (vertices, index, vec, dim, maxLength) {
-  const res = []
-  for (let i = 0; i < dim; i++) res.push(vertices[index * dim + i] + vec[i] * maxLength)
-  return res
+// i1 is always the vertex with an acute angle.
+// splitRight means we start on the left side of this "1D" observation moving right
+function splitRight (modPoint, i1, i2, i3, v1, v2, v3, vertices, indices, dim, axis, modulo) {
+  // console.log('SPLIT RIGHT', modPoint, v1, v2, v3, axis)
+  // first case is a standalone triangle
+  let i12 = createVertex(modPoint, i1, i2, v1, v2, vertices, dim, axis)
+  let i13 = createVertex(modPoint, i1, i3, v1, v3, vertices, dim, axis)
+  indices.push(i1, i12, i13)
+  modPoint += modulo
+  // console.log('modPoint', modPoint)
+  if (i2 < i3) {
+    // create lines up to i2
+    while (modPoint < v2) {
+      // next triangles are i13->i12->nexti13 and nexti13->i12->nexti12 so store in necessary order
+      indices.push(i13, i12)
+      i13 = createVertex(modPoint, i1, i3, v1, v3, vertices, dim, axis)
+      indices.push(i13, i13, i12)
+      i12 = createVertex(modPoint, i1, i2, v1, v2, vertices, dim, axis)
+      indices.push(i12)
+      // increment
+      modPoint += modulo
+      // console.log('modPoint', modPoint)
+    }
+    // add v2 triangle if necessary
+    indices.push(i13, i12, i2)
+    // return the remaining triangle
+    return [i13, i2, i3]
+  } else {
+    // console.log('B')
+    // create lines up to i2
+    while (modPoint < v3) {
+      // next triangles are i13->i12->nexti13 and nexti13->i12->nexti12 so store in necessary order
+      indices.push(i13, i12)
+      i13 = createVertex(modPoint, i1, i3, v1, v3, vertices, dim, axis)
+      indices.push(i13, i13, i12)
+      i12 = createVertex(modPoint, i1, i2, v1, v2, vertices, dim, axis)
+      indices.push(i12)
+      // increment
+      modPoint += modulo
+    }
+    // add v3 triangle if necessary
+    indices.push(i13, i12, i3)
+    // return the remaining triangle
+    return [i3, i12, i2]
+  }
 }
 
-function length (vertices, p1, p2, dim) {
-  let acc = 0
-  for (let i = 0; i < dim; i++) acc += Math.pow(vertices[p2 * dim + i] - vertices[p1 * dim + i], 2)
-  return Math.sqrt(acc)
+// i1 is always the vertex with an acute angle. i2 is always the furthest away from i1
+// splitLeft means we start on the right side of this "1D" observation moving left
+function splitLeft (modPoint, i1, i2, i3, v1, v2, v3, vertices, indices, dim, axis, modulo) {
+  // console.log('SPLIT LEFT', modPoint, v1, v2, v3, axis)
+  // first case is a standalone triangle
+  let i12 = createVertex(modPoint, i1, i2, v1, v2, vertices, dim, axis)
+  let i13 = createVertex(modPoint, i1, i3, v1, v3, vertices, dim, axis)
+  indices.push(i1, i12, i13)
+  modPoint -= modulo
+  // console.log('modPoint', modPoint)
+  if (i2 > i3) {
+    // create lines up to i2
+    while (modPoint > v2) {
+      // console.log('modPoint', modPoint)
+      // next triangles are i13->i12->nexti13 and nexti13->i12->nexti12 so store in necessary order
+      indices.push(i13, i12)
+      i13 = createVertex(modPoint, i1, i3, v1, v3, vertices, dim, axis)
+      indices.push(i13, i13, i12)
+      i12 = createVertex(modPoint, i1, i2, v1, v2, vertices, dim, axis)
+      indices.push(i12)
+      // increment
+      modPoint -= modulo
+    }
+    // add v2 triangle if necessary
+    indices.push(i13, i12, i2)
+    // return the remaining triangle
+    return [i13, i2, i3]
+  } else {
+    // create lines up to i2
+    while (modPoint > v3) {
+      // next triangles are i13->i12->nexti13 and nexti13->i12->nexti12 so store in necessary order
+      indices.push(i13, i12)
+      i13 = createVertex(modPoint, i1, i3, v1, v3, vertices, dim, axis)
+      indices.push(i13, i13, i12)
+      i12 = createVertex(modPoint, i1, i2, v1, v2, vertices, dim, axis)
+      indices.push(i12)
+      // increment
+      modPoint -= modulo
+    }
+    // add v3 triangle if necessary
+    indices.push(i13, i12, i3)
+    // return the remaining triangle
+    return [i3, i12, i2]
+  }
 }
 
 function flatten (data) {

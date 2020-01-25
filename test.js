@@ -87,7 +87,7 @@ const indices = []
 
 console.time('test')
 allCoords.forEach(coords => {
-  const data = earclip(coords, 4096 / 8, vertices.length / 2)
+  const data = earclip(coords, vertices.length / 2)
   vertices.push(...data.vertices)
   indices.push(...data.indices)
 })

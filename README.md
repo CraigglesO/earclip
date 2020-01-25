@@ -13,6 +13,10 @@
 
 https://coveralls.io/
 
+TODO:
+* simplify functions (a lot of overlap)
+* a lot of reused vertices that could be pointed to by the indexer
+
 ---
 
 ## ISC License (ISC)

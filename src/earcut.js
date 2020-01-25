@@ -1,21 +1,21 @@
-function earcut (data, holeIndices, dim) {
+function earcut (data, holeIndices) {
   const hasHoles = holeIndices && holeIndices.length
-  const outerLen = hasHoles ? holeIndices[0] * dim : data.length
-  let outerNode = linkedList(data, 0, outerLen, dim, true)
+  const outerLen = hasHoles ? holeIndices[0] * 2 : data.length
+  let outerNode = linkedList(data, 0, outerLen, true)
   const triangles = []
 
   if (!outerNode || outerNode.next === outerNode.prev) return triangles
 
   let minX, minY, maxX, maxY, x, y, invSize
 
-  if (hasHoles) outerNode = eliminateHoles(data, holeIndices, outerNode, dim)
+  if (hasHoles) outerNode = eliminateHoles(data, holeIndices, outerNode)
 
   // if the shape is not too simple, we'll use z-order curve hash later; calculate polygon bbox
-  if (data.length > 80 * dim) {
+  if (data.length > 160) {
     minX = maxX = data[0]
     minY = maxY = data[1]
 
-    for (let i = dim; i < outerLen; i += dim) {
+    for (let i = 2; i < outerLen; i += 2) {
       x = data[i]
       y = data[i + 1]
       if (x < minX) minX = x
@@ -29,19 +29,19 @@ function earcut (data, holeIndices, dim) {
     invSize = invSize !== 0 ? 1 / invSize : 0
   }
 
-  earcutLinked(outerNode, triangles, dim, minX, minY, invSize, null)
+  earcutLinked(outerNode, triangles, minX, minY, invSize, null)
 
   return triangles
 }
 
 // create a circular doubly linked list from polygon points in the specified winding order
-function linkedList (data, start, end, dim, clockwise) {
+function linkedList (data, start, end, clockwise) {
   let i, last
 
-  if (clockwise === (signedArea(data, start, end, dim) > 0)) {
-    for (i = start; i < end; i += dim) last = insertNode(i, data[i], data[i + 1], last)
+  if (clockwise === (signedArea(data, start, end) > 0)) {
+    for (i = start; i < end; i += 2) last = insertNode(i, data[i], data[i + 1], last)
   } else {
-    for (i = end - dim; i >= start; i -= dim) last = insertNode(i, data[i], data[i + 1], last)
+    for (i = end - 2; i >= start; i -= 2) last = insertNode(i, data[i], data[i + 1], last)
   }
 
   if (last && equals(last, last.next)) {
@@ -77,7 +77,7 @@ function filterPoints (start, end) {
 }
 
 // main ear slicing loop which triangulates a polygon (given as a linked list)
-function earcutLinked (ear, triangles, dim, minX, minY, invSize, pass) {
+function earcutLinked (ear, triangles, minX, minY, invSize, pass) {
   if (!ear) return
   // interlink polygon nodes in z-order
   if (!pass && invSize) indexCurve(ear, minX, minY, invSize)
@@ -93,9 +93,9 @@ function earcutLinked (ear, triangles, dim, minX, minY, invSize, pass) {
 
     if (invSize ? isEarHashed(ear, minX, minY, invSize) : isEar(ear)) {
       // cut off the triangle
-      triangles.push(prev.i / dim)
-      triangles.push(ear.i / dim)
-      triangles.push(next.i / dim)
+      triangles.push(prev.i / 2)
+      triangles.push(ear.i / 2)
+      triangles.push(next.i / 2)
 
       removeNode(ear)
 
@@ -112,16 +112,16 @@ function earcutLinked (ear, triangles, dim, minX, minY, invSize, pass) {
     if (ear === stop) {
       // try filtering points and slicing again
       if (!pass) {
-        earcutLinked(filterPoints(ear), triangles, dim, minX, minY, invSize, 1)
+        earcutLinked(filterPoints(ear), triangles, minX, minY, invSize, 1)
 
         // if this didn't work, try curing all small self-intersections locally
       } else if (pass === 1) {
-        ear = cureLocalIntersections(ear, triangles, dim)
-        earcutLinked(ear, triangles, dim, minX, minY, invSize, 2)
+        ear = cureLocalIntersections(ear, triangles, 2)
+        earcutLinked(ear, triangles, minX, minY, invSize, 2)
 
         // as a last resort, try splitting the remaining polygon into two
       } else if (pass === 2) {
-        splitEarcut(ear, triangles, dim, minX, minY, invSize)
+        splitEarcut(ear, triangles, minX, minY, invSize)
       }
 
       break
@@ -202,16 +202,16 @@ function isEarHashed (ear, minX, minY, invSize) {
 }
 
 // go through all polygon nodes and cure small local self-intersections
-function cureLocalIntersections (start, triangles, dim) {
+function cureLocalIntersections (start, triangles) {
   let p = start
   do {
     const a = p.prev
     const b = p.next.next
 
     if (!equals(a, b) && intersects(a, p, p.next, b) && locallyInside(a, b) && locallyInside(b, a)) {
-      triangles.push(a.i / dim)
-      triangles.push(p.i / dim)
-      triangles.push(b.i / dim)
+      triangles.push(a.i / 2)
+      triangles.push(p.i / 2)
+      triangles.push(b.i / 2)
 
       // remove two nodes involved
       removeNode(p)
@@ -226,7 +226,7 @@ function cureLocalIntersections (start, triangles, dim) {
 }
 
 // try splitting polygon into two and triangulate them independently
-function splitEarcut (start, triangles, dim, minX, minY, invSize) {
+function splitEarcut (start, triangles, minX, minY, invSize) {
   // look for a valid diagonal that divides the polygon into two
   let a = start
   do {
@@ -241,8 +241,8 @@ function splitEarcut (start, triangles, dim, minX, minY, invSize) {
         c = filterPoints(c, c.next)
 
         // run earcut on each half
-        earcutLinked(a, triangles, dim, minX, minY, invSize, null)
-        earcutLinked(c, triangles, dim, minX, minY, invSize, null)
+        earcutLinked(a, triangles, minX, minY, invSize, null)
+        earcutLinked(c, triangles, minX, minY, invSize, null)
         return
       }
       b = b.next
@@ -252,15 +252,15 @@ function splitEarcut (start, triangles, dim, minX, minY, invSize) {
 }
 
 // link every hole into the outer loop, producing a single-ring polygon without holes
-function eliminateHoles (data, holeIndices, outerNode, dim) {
+function eliminateHoles (data, holeIndices, outerNode) {
   const queue = []
 
   let i; let len; let start; let end; let list
 
   for (i = 0, len = holeIndices.length; i < len; i++) {
-    start = holeIndices[i] * dim
-    end = i < len - 1 ? holeIndices[i + 1] * dim : data.length
-    list = linkedList(data, start, end, dim, false)
+    start = holeIndices[i] * 2
+    end = i < len - 1 ? holeIndices[i + 1] * 2 : data.length
+    list = linkedList(data, start, end, 2, false)
     if (list === list.next) list.steiner = true
     queue.push(getLeftmost(list))
   }
@@ -580,9 +580,9 @@ function Node (i, x, y) {
   this.steiner = false
 }
 
-function signedArea (data, start, end, dim) {
+function signedArea (data, start, end) {
   let sum = 0
-  for (let i = start, j = end - dim; i < end; i += dim) {
+  for (let i = start, j = end - 2; i < end; i += 2) {
     sum += (data[j] - data[i]) * (data[i + 1] + data[j + 1])
     j = i
   }

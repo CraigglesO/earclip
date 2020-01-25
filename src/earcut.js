@@ -260,7 +260,7 @@ function eliminateHoles (data, holeIndices, outerNode) {
   for (i = 0, len = holeIndices.length; i < len; i++) {
     start = holeIndices[i] * 2
     end = i < len - 1 ? holeIndices[i + 1] * 2 : data.length
-    list = linkedList(data, start, end, 2, false)
+    list = linkedList(data, start, end, false)
     if (list === list.next) list.steiner = true
     queue.push(getLeftmost(list))
   }

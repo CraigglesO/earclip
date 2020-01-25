@@ -62,7 +62,7 @@ const featureCollection = {
 //   ]
 // ]
 
-const input = JSON.parse(fs.readFileSync('./featureCollections/holesTest.json', 'utf8'))
+const input = JSON.parse(fs.readFileSync('./featureCollections/landBug.json', 'utf8'))
 
 // const allCoords = [input.features[0].geometry.coordinates[8]]
 const allCoords = input.features[0].geometry.coordinates

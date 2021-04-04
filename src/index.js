@@ -5,7 +5,13 @@ function earclip (polygon, modulo = Infinity, offset = 0) {
   // Use earcut to build standard triangle set
   const { vertices, holeIndices, dim } = flatten(polygon) // dim => dimensions
   const indices = earcut(vertices, holeIndices, dim)
+  // tesselate if necessary
+  tesselate(vertices, indices, modulo, dim)
+  // update offset and return
+  return { vertices, indices: indices.map(index => index + offset) }
+}
 
+function tesselate (vertices, indices, modulo, dim) {
   // for each triangle, ensure each triangle line does not pass through iterations of the modulo for x, y, and z
   if (modulo !== Infinity) {
     let A, B, C
@@ -25,8 +31,6 @@ function earclip (polygon, modulo = Infinity, offset = 0) {
       }
     }
   }
-
-  return { vertices, indices: indices.map(index => index + offset) }
 }
 
 // given vertices, and an axis of said vertices:

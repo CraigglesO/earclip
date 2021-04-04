@@ -202,5 +202,6 @@ function flatten (data) {
 }
 
 exports.earclip = earclip
+exports.tesselate = tesselate
 exports.flatten = flatten
 exports.earcut = earcut

@@ -1,12 +1,12 @@
 {
   "name": "earclip",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Triangle mesh designed to be fast, efficient, and sphere capable.",
   "main": "lib/index.js",
   "scripts": {
     "lint+build+test": "yarn run lint && yarn run build && yarn run test",
     "lint": "echo linting... && standard ./src/**/*.js && echo 'successfully linted'",
-    "build": "echo building... && babel src/ -d lib/ && echo 'successfully built'",
+    "build": "echo building... && rm -r lib && babel src/ -d lib/ && echo 'successfully built'",
     "prepublish": "yarn run build",
     "test": "echo running server tests... && standard && tape test/**/*.js | tap-summary && echo 'successfully completed tests'"
   },
